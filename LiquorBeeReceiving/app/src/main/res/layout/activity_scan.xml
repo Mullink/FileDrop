@@ -47,30 +47,13 @@
     <!-- Scan is the only real content this screen ever shows (Manual is just a shortcut into
          CreatePurchaseOrderActivity, see ScanActivity.kt) - a two-way toggle where one side does
          nothing was confusing, so this is just the one "Manual" shortcut button, not a toggle. -->
-    <LinearLayout
+    <Button
+        android:id="@+id/buttonModeManual"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <Button
-            android:id="@+id/buttonModeManual"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="4dp"
-            android:text="Manual"
-            android:background="@drawable/bg_button_muted"
-            android:textColor="@color/white" />
-        <!-- Re-entry point into StagedInvoiceListActivity/StagedInvoiceDetailActivity - this whole
-             flow has no other link into it anywhere in the app. -->
-        <Button
-            android:id="@+id/linkScannedInvoices"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Scanned Invoices"
-            android:background="@drawable/bg_button_muted"
-            android:textColor="@color/white" />
-    </LinearLayout>
+        android:text="Manual"
+        android:background="@drawable/bg_button_muted"
+        android:textColor="@color/white" />
 
     <View
         android:layout_width="match_parent"

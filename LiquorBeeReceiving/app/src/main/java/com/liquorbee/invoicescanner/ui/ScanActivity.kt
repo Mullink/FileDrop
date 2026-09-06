@@ -101,7 +101,6 @@ class ScanActivity : AppCompatActivity() {
         // on this screen - Scan stays the only thing ScanActivity itself ever shows, tapping Manual
         // just launches Create PO and this screen is exactly as it was when the user backs out of it.
         binding.buttonModeManual.setOnClickListener { startActivity(Intent(this, CreatePurchaseOrderActivity::class.java)) }
-        binding.linkScannedInvoices.setOnClickListener { startActivity(Intent(this, StagedInvoiceListActivity::class.java)) }
         binding.buttonSubmit.setOnClickListener { submitBatch() }
         binding.buttonUsbDiagnostics.setOnClickListener { showUsbDiagnostics() }
         binding.linkManageVendors.setOnClickListener { startActivity(Intent(this, VendorManagementActivity::class.java)) }

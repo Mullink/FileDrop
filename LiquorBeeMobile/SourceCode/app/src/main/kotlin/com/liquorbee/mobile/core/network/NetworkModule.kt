@@ -10,11 +10,11 @@ import java.util.concurrent.TimeUnit
 
 object NetworkModule {
 
-    // Matches the live web app's environment.ts baseApiUrl. There's no separately-deployed
-    // frontend "TEST" environment to point a debug build at - the Angular app's own "development"
-    // build configuration uses this exact same URL (see angular.json - it only swaps environment
-    // files for the "production" configuration).
-    private const val BASE_URL = "https://hennyadmin.azurewebsites.net/"
+    // Matches the live web app's actual deployed backend - environment.prod.ts's baseApiUrl (the
+    // Angular build config that's actually shipped), and the same URL
+    // LiquorBeeInvoiceScannerAndroid's ApiClient.BASE_URL uses. hennyadmin.azurewebsites.net is
+    // environment.ts's (non-prod build config) URL - an old/local-only slot, not the live backend.
+    private const val BASE_URL = "https://dev-liquorbee-ege6cweqduhmayej.canadacentral-01.azurewebsites.net/"
 
     private val json = Json {
         ignoreUnknownKeys = true

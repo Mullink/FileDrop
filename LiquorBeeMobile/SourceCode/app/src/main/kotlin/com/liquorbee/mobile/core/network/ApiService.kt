@@ -133,9 +133,6 @@ interface ApiService {
 
     // ---- Scan Invoice (human-automation queue) ----
 
-    @GET("HumanQueue/GetIsHumanAutomationOn")
-    suspend fun getIsHumanAutomationOn(): Response<Boolean>
-
     @GET("HumanQueue/GetActiveVendors")
     suspend fun getHumanQueueVendors(): Response<List<HumanQueueVendorDto>>
 

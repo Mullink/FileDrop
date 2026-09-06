@@ -98,15 +98,15 @@ class HomeViewModel(
     // customer, with zero app-side configuration to keep in sync.
     private fun loadToolsGating() {
         viewModelScope.launch {
-            // Scan Invoice only makes sense on a phone as the simplified human-queue flow (upload +
-            // pick/create vendor) - there's no mobile equivalent of the desktop vendor-template
-            // wizard the AI extraction path needs, so the tile requires BOTH gates: the existing
-            // per-customer visibility flag AND the global human-automation setting being on.
+            // Matches web's ocrScanVisible getter (pos-purchase-orders.ts) exactly: gated only on
+            // GetCanSeeInvoiceOcrScan. Web also ANDs a feature-profile check, but that fails open
+            // to true when the feature isn't configured for a given State/ProductScope - it's not
+            // an independent flag mobile can meaningfully re-check, so it's left out here rather
+            // than adding a mismatched gate. GetIsHumanAutomationOn is a red herring: on web it only
+            // hides the separate "Scanned Invoices" link, never this button - do not AND it in here.
             val canSeeOcrScan = runCatching { apiService.canSeeInvoiceOcrScan() }
                 .getOrNull()?.takeIf { it.isSuccessful }?.body() == true
-            val isHumanAutomationOn = runCatching { apiService.getIsHumanAutomationOn() }
-                .getOrNull()?.takeIf { it.isSuccessful }?.body() == true
-            _uiState.value = _uiState.value.copy(showScanInvoice = canSeeOcrScan && isHumanAutomationOn)
+            _uiState.value = _uiState.value.copy(showScanInvoice = canSeeOcrScan)
 
             runCatching { apiService.getHideSalesDashboard() }
                 .onSuccess { response ->
