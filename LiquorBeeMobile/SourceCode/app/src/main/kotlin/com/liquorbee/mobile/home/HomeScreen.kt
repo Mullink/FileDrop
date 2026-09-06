@@ -90,7 +90,30 @@ fun HomeScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Liquor Bee", fontWeight = FontWeight.Bold) },
+                    title = {
+                        Column {
+                            Text("Liquor Bee", fontWeight = FontWeight.Bold)
+                            // Matches LiquorBeeInvoiceScannerAndroid's HomeActivity.textSyncStatus:
+                            // green check when current, red warning when a newer build exists,
+                            // tappable to force an immediate re-check either way.
+                            val status = uiState.updateStatus
+                            if (status != null) {
+                                val (label, color) = when (status) {
+                                    is UpdateChecker.Result.UpdateAvailable -> "⚠ Update available" to Color(0xFFC62828)
+                                    UpdateChecker.Result.UpToDate -> "✓ Up to date" to Color(0xFF2E7D32)
+                                    UpdateChecker.Result.CheckFailed -> "" to Color.Transparent
+                                }
+                                if (label.isNotEmpty()) {
+                                    Text(
+                                        label,
+                                        color = color,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.clickable { viewModel.checkForUpdate(announce = true) }
+                                    )
+                                }
+                            }
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = LiquorBeeNavy,
                         titleContentColor = LiquorBeeBlue,

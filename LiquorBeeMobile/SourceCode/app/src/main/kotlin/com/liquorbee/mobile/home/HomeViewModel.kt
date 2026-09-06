@@ -27,7 +27,11 @@ data class HomeUiState(
     // Only ever populated with something the dialog should actually show - a dismissed-for-this-
     // version UpdateAvailable, or any UpToDate/CheckFailed result from a background poll, never
     // reaches the UI (see checkForUpdate's announce/wasDismissed gating).
-    val updateDialogResult: UpdateChecker.Result? = null
+    val updateDialogResult: UpdateChecker.Result? = null,
+    // Unlike updateDialogResult, this always reflects the most recent check regardless of the
+    // announce/dismiss gating - drives the persistent "Up to date"/"Update available" nav bar
+    // text, same as LiquorBeeInvoiceScannerAndroid's HomeActivity.textSyncStatus.
+    val updateStatus: UpdateChecker.Result? = null
 )
 
 class HomeViewModel(
@@ -66,12 +70,16 @@ class HomeViewModel(
         viewModelScope.launch {
             when (val result = UpdateChecker.check(appContext)) {
                 is UpdateChecker.Result.UpdateAvailable -> {
+                    _uiState.value = _uiState.value.copy(updateStatus = result)
                     if (announce || !UpdateChecker.wasDismissed(appContext, result.latestVersionCode)) {
                         _uiState.value = _uiState.value.copy(updateDialogResult = result)
                     }
                 }
-                else -> if (announce) {
-                    _uiState.value = _uiState.value.copy(updateDialogResult = result)
+                else -> {
+                    _uiState.value = _uiState.value.copy(updateStatus = result)
+                    if (announce) {
+                        _uiState.value = _uiState.value.copy(updateDialogResult = result)
+                    }
                 }
             }
         }

@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.liquorbee.invoicescanner.R
 import com.liquorbee.invoicescanner.databinding.ItemStagedInvoiceLineBinding
 import com.liquorbee.invoicescanner.network.OcrScannedInvoiceLineItemDto
 
@@ -47,6 +48,11 @@ class StagedInvoiceLineAdapter(
         val b = holder.binding
 
         b.textItemName.text = line.displayName ?: line.itemName ?: line.itemCode ?: "(Unmatched item)"
+        // Row views are recycled - must set the color for BOTH cases every bind, or a recycled
+        // "new item" row's blue would leak onto the next non-new item scrolled into view.
+        b.textItemName.setTextColor(
+            b.root.context.getColor(if (line.isNewItem) R.color.highlight_new_item else R.color.black)
+        )
         b.textItemMeta.text = listOfNotNull(line.itemCategory, line.subCategory, line.size, line.upcCode)
             .filter { it.isNotBlank() }.joinToString(" • ")
 
@@ -117,9 +123,21 @@ class StagedInvoiceLineAdapter(
         parts.add("Current: ${line.currentUnitPrice?.let { "$%.2f".format(it) } ?: "—"}")
         val suggested = line.suggestedUnitPrice?.let { "$%.2f".format(it) } ?: "—"
         parts.add(if (showRecommended(line)) "Suggested: $suggested ⚠ recommended" else "Suggested: $suggested")
-        // desiredMarkUp is a ratio from the backend (0.5 = 50%) - see PurchaseOrderLineAdapter's
-        // matching comment.
-        line.desiredMarkUp?.let { parts.add("Markup: %.1f%%".format(it * 100)) }
+        // desiredMarkUp/currentMarkUp are ratios from the backend (0.5 = 50%) - see
+        // PurchaseOrderLineAdapter's matching comment. Margin isn't sent as its own numeric field
+        // for staged lines (only marginStatus, a status label) - derived here instead: current
+        // margin straight from cost/price (most direct, no compounding rounding through markup),
+        // desired margin converted from the markup ratio via margin = markup / (1 + markup).
+        line.desiredMarkUp?.let { m ->
+            parts.add("Desired Markup: %.1f%%".format(m * 100))
+            parts.add("Desired Margin: %.1f%%".format(m / (1 + m) * 100))
+        }
+        line.currentMarkUp?.let { parts.add("Current Markup: %.1f%%".format(it * 100)) }
+        val cost = line.unitCost
+        val currentPrice = line.currentUnitPrice
+        if (cost != null && currentPrice != null && currentPrice > 0) {
+            parts.add("Current Margin: %.1f%%".format((currentPrice - cost) / currentPrice * 100))
+        }
         line.marginStatus?.let { parts.add("Margin: $it") }
         if (line.isMarkupRateDefaulted) parts.add("⚠ default markup rate used")
         b.textPricing.text = parts.joinToString("  •  ")

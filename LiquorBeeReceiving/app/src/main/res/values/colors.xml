@@ -19,4 +19,5 @@
          keywords orange/green) so the app and the web Purchase Orders page read as one product. -->
     <color name="status_staged">#FFA500</color>
     <color name="status_received">#008000</color>
+    <color name="highlight_new_item">#1565C0</color>
 </resources>
