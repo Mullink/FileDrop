@@ -127,7 +127,10 @@ class PurchaseOrderLineAdapter(
     private fun renderPricing(b: ItemPurchaseOrderLineBinding, line: PurchaseOrderLineDto) {
         val parts = mutableListOf<String>()
         parts.add("Suggested: ${money(line.suggestedUnitPrice)}")
-        line.desiredMarkUp?.let { parts.add("Markup: %.1f%%".format(it)) }
+        // desiredMarkUp is a ratio from the backend (0.5 = 50%), same convention the web app uses
+        // (pos-purchase-orders.html multiplies by 100 at every display site) - without this *100
+        // a 50% markup rendered as "0.5%".
+        line.desiredMarkUp?.let { parts.add("Markup: %.1f%%".format(it * 100)) }
         line.marginStatus?.let { parts.add("Margin: $it") }
         if (line.isNewItem) parts.add("NEW ITEM")
         if (line.hasPriceChange) parts.add("price changed since staging")

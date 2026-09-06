@@ -69,6 +69,25 @@ fun LiquorBeeNavHost(app: LiquorBeeApplication) {
         }
     }
 
+    // NavHost's own automatic back handling is disabled below in favor of this single handler,
+    // which owns 100% of back-press behavior for the whole graph. NavHost's built-in handling is
+    // keyed off backQueue.size and re-registers per composition; a rapid second back press (e.g.
+    // right after returning from a Tool screen to Home) can land while that internal state is
+    // between updates, popping the graph's last remaining entry (Home) instead of falling through
+    // to finish the Activity - the result is nothing left to compose (a blank window matching the
+    // theme's background) with the Activity still alive, requiring a force-restart. A single,
+    // stable, always-registered handler removes the race entirely: pop through the NavController
+    // ourselves when there's somewhere to go back to, otherwise finish the Activity directly.
+    val activity = LocalContext.current as? Activity
+    LaunchedEffect(navController) { navController.enableOnBackPressed(false) }
+    BackHandler(enabled = true) {
+        if (navController.previousBackStackEntry != null) {
+            navController.popBackStack()
+        } else {
+            activity?.finish()
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = if (isLoggedIn) ROUTE_HOME else ROUTE_LOGIN
@@ -80,15 +99,6 @@ fun LiquorBeeNavHost(app: LiquorBeeApplication) {
 
         composable(ROUTE_HOME) {
             val viewModel: HomeViewModel = viewModel(factory = factory)
-            // Home is always the bottom of the back stack once logged in - explicitly finish the
-            // Activity here rather than letting NavHost's own back handling fall through to the
-            // system default. NavHost's internal back interception is keyed off backQueue.size,
-            // which can be transiently wrong right after the Login->Home popUpTo(0) transition;
-            // if a second back press lands during that window, NavHost can pop Home itself off an
-            // otherwise-empty stack instead of finishing the Activity, leaving nothing composed
-            // (a blank window showing only the theme's background) until the app is force-restarted.
-            val activity = LocalContext.current as? Activity
-            BackHandler(enabled = true) { activity?.finish() }
             HomeScreen(
                 viewModel = viewModel,
                 onOpenTool = { route ->

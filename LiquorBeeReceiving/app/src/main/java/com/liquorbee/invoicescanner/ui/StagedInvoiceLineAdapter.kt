@@ -117,7 +117,9 @@ class StagedInvoiceLineAdapter(
         parts.add("Current: ${line.currentUnitPrice?.let { "$%.2f".format(it) } ?: "—"}")
         val suggested = line.suggestedUnitPrice?.let { "$%.2f".format(it) } ?: "—"
         parts.add(if (showRecommended(line)) "Suggested: $suggested ⚠ recommended" else "Suggested: $suggested")
-        line.desiredMarkUp?.let { parts.add("Markup: %.1f%%".format(it)) }
+        // desiredMarkUp is a ratio from the backend (0.5 = 50%) - see PurchaseOrderLineAdapter's
+        // matching comment.
+        line.desiredMarkUp?.let { parts.add("Markup: %.1f%%".format(it * 100)) }
         line.marginStatus?.let { parts.add("Margin: $it") }
         if (line.isMarkupRateDefaulted) parts.add("⚠ default markup rate used")
         b.textPricing.text = parts.joinToString("  •  ")
