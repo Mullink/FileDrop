@@ -1,5 +1,7 @@
 package com.liquorbee.mobile.navigation
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -7,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -77,6 +80,15 @@ fun LiquorBeeNavHost(app: LiquorBeeApplication) {
 
         composable(ROUTE_HOME) {
             val viewModel: HomeViewModel = viewModel(factory = factory)
+            // Home is always the bottom of the back stack once logged in - explicitly finish the
+            // Activity here rather than letting NavHost's own back handling fall through to the
+            // system default. NavHost's internal back interception is keyed off backQueue.size,
+            // which can be transiently wrong right after the Login->Home popUpTo(0) transition;
+            // if a second back press lands during that window, NavHost can pop Home itself off an
+            // otherwise-empty stack instead of finishing the Activity, leaving nothing composed
+            // (a blank window showing only the theme's background) until the app is force-restarted.
+            val activity = LocalContext.current as? Activity
+            BackHandler(enabled = true) { activity?.finish() }
             HomeScreen(
                 viewModel = viewModel,
                 onOpenTool = { route ->

@@ -51,8 +51,8 @@
         android:id="@+id/buttonModeManual"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Manual"
-        android:background="@drawable/bg_button_muted"
+        android:text="Create Manual PO"
+        android:background="@drawable/bg_button_orange"
         android:textColor="@color/white" />
 
     <View
