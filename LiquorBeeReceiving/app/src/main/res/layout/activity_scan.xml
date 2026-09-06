@@ -44,23 +44,43 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-    <!-- Scan is the only real content this screen ever shows (Manual is just a shortcut into
-         CreatePurchaseOrderActivity, see ScanActivity.kt) - a two-way toggle where one side does
-         nothing was confusing, so this is just the one "Manual" shortcut button, not a toggle. -->
-    <Button
-        android:id="@+id/buttonModeManual"
+    <!-- Manual is just a shortcut into CreatePurchaseOrderActivity (see ScanActivity.kt), a
+         separate path from the Scan section below - given its own card + a distinct orange fill
+         so it doesn't read as just another step in the scan flow. -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Create Manual PO"
-        android:background="@drawable/bg_button_orange"
-        android:textColor="@color/white" />
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_surface"
+        android:padding="12dp">
+        <Button
+            android:id="@+id/buttonModeManual"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Create Manual PO"
+            android:background="@drawable/bg_button_orange"
+            android:backgroundTint="@null"
+            android:textColor="@color/white" />
+    </LinearLayout>
 
-    <View
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#DDDDDD"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="4dp" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:gravity="center"
+        android:text="OR"
+        android:textColor="#9AA0AC"
+        android:textStyle="bold"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_surface"
+        android:padding="12dp">
 
     <TextView
         android:id="@+id/textPendingInvoice"
@@ -68,7 +88,6 @@
         android:layout_height="wrap_content"
         android:textColor="@color/purple_dark"
         android:textStyle="bold"
-        android:layout_marginTop="8dp"
         android:visibility="gone" />
 
     <!-- Mirrors the web page's "N invoices ready for review" notice - polled the same way
@@ -80,7 +99,6 @@
         android:orientation="vertical"
         android:background="#E8F5E9"
         android:padding="8dp"
-        android:layout_marginTop="8dp"
         android:visibility="gone">
         <TextView
             android:id="@+id/textReadyForReviewHeader"
@@ -99,7 +117,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="12dp"
         android:gravity="center_vertical">
         <TextView
             android:layout_width="wrap_content"
@@ -206,6 +223,8 @@
         android:text="Submit Invoice"
         android:background="@drawable/bg_button_primary"
         android:textColor="@color/white" />
+
+    </LinearLayout>
 
     </LinearLayout>
 
