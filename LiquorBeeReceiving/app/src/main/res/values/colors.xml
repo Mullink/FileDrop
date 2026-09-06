@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Names kept as purple_primary/purple_dark to avoid touching every layout that references
+         them, but the values are HennyAdminOnline's real site-wide brand color (styles.css'
+         .btn-primary/.btn-outline-primary/tile-btn all use #030f2b - NOT the #6F42C1 purple this
+         app used before, which only ever came from one modal's inline style, not the real theme). -->
+    <color name="purple_primary">#030F2B</color>
+    <color name="purple_dark">#020A20</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="error_red">#D32F2F</color>
+    <!-- Navy-tinted neutrals for a real visual hierarchy (solid-color header bars, tinted card
+         surfaces) instead of just tinting small bits of text navy on an otherwise plain white
+         screen - text-only accents read as "basic" precisely because navy-on-white is subtle;
+         navy AS a fill (with white text on it) is what actually reads as branded/modern. -->
+    <color name="screen_background">#F4F5F8</color>
+    <color name="card_surface_tint">#E8EBF2</color>
+    <!-- Matches pos-purchase-orders.css's .status-staged/.status-received exactly (plain CSS color
+         keywords orange/green) so the app and the web Purchase Orders page read as one product. -->
+    <color name="status_staged">#FFA500</color>
+    <color name="status_received">#008000</color>
+</resources>

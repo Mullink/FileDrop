@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Replaces the old "light background + purple_dark text" secondary button style - that text
+     color (#020A20) is near-black and was genuinely unreadable-as-intended, not a rendering bug.
+     This is a solid mid-gray fill instead, so secondary/less-prominent buttons still read as
+     visually distinct from primary ones (bg_button_primary) but ALWAYS pair with white text. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#6B7280" />
+    <corners android:radius="8dp" />
+</shape>

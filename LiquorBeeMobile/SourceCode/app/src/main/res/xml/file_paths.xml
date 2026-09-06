@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Camera captures are written to the app's own cache dir under this subfolder, then read
+         back and compressed before upload - see ScanInvoiceViewModel. -->
+    <cache-path name="scan_invoice_photos" path="scan_invoice/" />
+</paths>

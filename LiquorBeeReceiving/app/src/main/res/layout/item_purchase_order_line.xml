@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/bg_card_rounded"
+    android:elevation="1dp"
+    android:layout_marginBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:id="@+id/textItemName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textStyle="bold" />
+        <!-- Matches the web's Curr. Qty column - green when in-stock, red at/under zero. -->
+        <TextView
+            android:id="@+id/textCurrQty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:layout_marginEnd="6dp" />
+        <TextView
+            android:id="@+id/textWarningBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚠"
+            android:textColor="@color/white"
+            android:background="#C62828"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:layout_marginEnd="6dp"
+            android:visibility="gone" />
+        <Button
+            android:id="@+id/buttonRemove"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:textSize="11sp"
+            android:background="@drawable/bg_button_danger"
+            android:textColor="@color/white"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textItemMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#888888"
+        android:textSize="12sp" />
+
+    <!-- Avg Cost + Cost Increase (unitCost vs oldCog) - same red-up/green-down convention as the
+         web's pos-purchase-orders.html Cost Increase column. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+        <TextView
+            android:id="@+id/textAvgCost"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="12sp"
+            android:textColor="#888888" />
+        <TextView
+            android:id="@+id/textCostIncrease"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- "Qty Type: Bottles"/"Qty Type: Cases" - derived from unitsPerCase, same convention as
+         CreatePoLineAdapter/item_create_po_line.xml's textQtyType, so a single Qty field below
+         means the right thing without a per-line toggle. -->
+    <TextView
+        android:id="@+id/textQtyType"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/purple_primary"
+        android:textStyle="bold"
+        android:textSize="12sp"
+        android:layout_marginTop="6dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Qty" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editQty" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Unit Cost ($)" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editUnitCost" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sell Price ($)" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editCurrentUnitPrice" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+
+        <!-- Copies Suggested Price straight into Sell Price ($) - only shown when there actually
+             is a suggested price to copy. -->
+        <Button
+            android:id="@+id/buttonUseSuggestedPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:text="Use Suggested"
+            android:textSize="10sp"
+            android:background="@drawable/bg_button_muted"
+            android:textColor="@color/white"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="8dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
+        <!-- Above Margin (green) / Under Margin (red) pill - matches the web's
+             badge-above-margin/badge-under-margin classes exactly. -->
+        <TextView
+            android:id="@+id/textMarginBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="10sp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:layout_marginEnd="6dp"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/textPricing"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</LinearLayout>

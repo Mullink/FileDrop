@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/bg_card_rounded"
+    android:elevation="1dp"
+    android:layout_marginBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/textItemName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textStyle="bold" />
+        <Button
+            android:id="@+id/buttonRemove"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:textSize="11sp"
+            android:background="@drawable/bg_button_danger"
+            android:textColor="@color/white"
+            android:minWidth="0dp"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textItemMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#888888"
+        android:textSize="12sp" />
+
+    <!-- Units/Case is editable here too, not just at add-time - the catalog's own value has been
+         wrong often enough that a quick on-the-spot correction after the item is already on the
+         order matters, not just before adding it. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <TextView
+            android:id="@+id/textQtyType"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/purple_primary"
+            android:textStyle="bold"
+            android:textSize="11sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Units/Case:"
+            android:textSize="10sp"
+            android:textColor="#888888"
+            android:layout_marginEnd="4dp" />
+        <EditText
+            android:id="@+id/editUnitsPerCase"
+            android:layout_width="50dp"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:textSize="12sp"
+            android:minHeight="0dp"
+            android:paddingVertical="2dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Qty" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editCases" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Unit Cost ($)" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editUnitCost" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sell Price ($)" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editPrice" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textLineTotal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:layout_marginTop="6dp" />
+
+</LinearLayout>

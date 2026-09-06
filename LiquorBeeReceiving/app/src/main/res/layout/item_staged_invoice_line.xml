@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="#FAFAFA"
+    android:layout_marginBottom="8dp">
+
+    <TextView
+        android:id="@+id/textItemName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/textItemMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#888888"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/textBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/white"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:textSize="10sp"
+        android:layout_marginTop="4dp" />
+
+    <!-- Units/Case, ShippedQty, Unit Cost - matches the web's three primary editable number fields. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Units/Case" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editUnitsPerCase" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Shipped Qty" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editShippedQty" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Unit Cost ($)" android:textSize="10sp" android:textColor="#888888" />
+            <EditText android:id="@+id/editUnitCost" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Shipped As (does ShippedQty above mean cases or bottles) vs Sell By (how the store normally
+         sells this item to ITS customers) - two independent fields, matching the web's distinction. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Shipped As" android:textSize="10sp" android:textColor="#888888" />
+            <Spinner android:id="@+id/spinnerShippedAs" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sell By" android:textSize="10sp" android:textColor="#888888" />
+            <Spinner android:id="@+id/spinnerSellBy" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textPricing"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

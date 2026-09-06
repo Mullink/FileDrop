@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menuMarkAsDeleted"
+        android:title="Mark as Deleted" />
+    <item
+        android:id="@+id/menuMarkAsError"
+        android:title="Mark as Error" />
+</menu>

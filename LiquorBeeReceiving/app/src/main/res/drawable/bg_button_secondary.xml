@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Explicit solid-fill drawable for secondary/light buttons - see bg_button_primary.xml's comment:
+     android:backgroundTint is not reliable on a MaterialButton (this app's theme is
+     Theme.MaterialComponents, so every plain <Button> auto-inflates as one), only an explicit
+     android:background drawable is guaranteed to actually render. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/card_surface_tint" />
+    <corners android:radius="8dp" />
+</shape>

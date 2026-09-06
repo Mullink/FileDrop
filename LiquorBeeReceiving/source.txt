@@ -1,3 +1,0 @@
-source
-
-the app-debug.apk and version.txt located in main directory is associated to this app.

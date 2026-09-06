@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No catalog match for this barcode - create a new item."
+            android:textStyle="bold"
+            android:textSize="14sp" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UPC / Barcode" android:textSize="10sp" android:textColor="#888888" android:layout_marginTop="12dp" />
+        <TextView
+            android:id="@+id/textNewItemUpc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:padding="8dp"
+            android:background="#F5F5F5" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Name *" android:textSize="10sp" android:textColor="#888888" android:layout_marginTop="8dp" />
+        <EditText android:id="@+id/editNewItemName" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SKU *" android:textSize="10sp" android:textColor="#888888" />
+                <EditText android:id="@+id/editNewItemSku" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Size" android:textSize="10sp" android:textColor="#888888" />
+                <EditText android:id="@+id/editNewItemSize" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="e.g. 750ML" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Units Per Case *" android:textSize="10sp" android:textColor="#888888" android:layout_marginTop="8dp" />
+        <EditText android:id="@+id/editNewItemUnitsPerCase" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" android:text="12" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Unit Cost ($)" android:textSize="10sp" android:textColor="#888888" />
+                <EditText android:id="@+id/editNewItemUnitCost" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sell Price ($) *" android:textSize="10sp" android:textColor="#888888" />
+                <EditText android:id="@+id/editNewItemPrice" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

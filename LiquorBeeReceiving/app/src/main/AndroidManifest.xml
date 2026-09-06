@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Required at runtime on Android 13+ (targetSdk 33) for AppNotifications to actually show
+         anything - requested from HomeActivity right after login. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Photos are captured straight into this app's private storage (never MediaStore/gallery),
+         so the API-33 granular media permissions (READ_MEDIA_IMAGES etc.) are not needed at all -
+         scoped storage never comes into play for a file this app both writes and reads itself. -->
+
+    <!-- USB-OTG for the Brother scanner integration - not required so the app still installs/runs
+         fully on phones with no USB host support or no scanner attached (camera capture always
+         works as the fallback/primary path). See capture/BrotherUsbCaptureSource.kt for the current
+         state of this integration. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <application
+        android:name=".InvoiceScannerApp"
+        android:allowBackup="false"
+        tools:replace="android:allowBackup"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.InvoiceScanner"
+        android:usesCleartextTraffic="false">
+
+        <!-- Launcher + deep-link entry point. android:exported="true" is REQUIRED (not optional)
+             for any component with an intent-filter once targetSdk >= 31 - omitting it is a manifest
+             merger error at build time, and getting it wrong at runtime is one of the classic causes
+             of an installed app silently refusing to open. -->
+        <activity
+            android:name=".ui.LoginActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.InvoiceScanner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- liquorbeescanner://scan?invoiceNumber=... - must match exactly what
+                 pos-purchase-orders.ts's openMobileScanner() already sends in production. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="liquorbeescanner" android:host="scan" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.HomeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.ScanActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.VendorManagementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.DrawActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.StagedInvoiceListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.StagedInvoiceDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.PurchaseOrderListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.PurchaseOrderDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <activity
+            android:name=".ui.CreatePurchaseOrderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.InvoiceScanner" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+</manifest>

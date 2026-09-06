@@ -1,0 +1,18 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base app theme: Compose owns all real UI, so this only needs to set the window
+         background/status bar for the brief moment before Compose content is drawn. -->
+    <style name="Theme.LiquorBeeMobile" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/liquor_bee_navy</item>
+        <item name="android:windowBackground">@color/liquor_bee_navy</item>
+    </style>
+
+    <!-- Splash theme (android:windowSplashScreenBackground etc. are API 31+ only attrs, safely
+         ignored on lower API levels via the androidx.core.splashscreen compat library, which
+         reads them through the "windowSplashScreen*" theme attrs it defines itself instead -
+         see Theme.LiquorBeeMobile.Splash below for the actual cross-version attrs used). -->
+    <style name="Theme.LiquorBeeMobile.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/liquor_bee_navy</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.LiquorBeeMobile</item>
+    </style>
+</resources>

@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout structure: a solid-color top bar (fixed), then a ScrollView holding just the
+     collapsible PO Details card (rarely needs to scroll, it's short), then a FIXED compact Add
+     Items card, then a FIXED "Order Lines" header, then the RecyclerView itself getting all
+     remaining space (0dp/weight=1) so IT is what scrolls - Order Lines scrolls in the space
+     between the fixed Add Items card above it and the fixed Submit footer below it. A RecyclerView
+     with wrap_content height nested inside a ScrollView is a fragile Android pattern (that's what
+     was capping it at ~2 visible items before); giving it real, explicit height fixes that at the
+     root instead of patching around it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/screen_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/purple_primary"
+        android:padding="12dp">
+        <TextView
+            android:id="@+id/textBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:gravity="center"
+            android:text="&#8249;"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="24sp"
+            android:clickable="true"
+            android:focusable="true" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Create Purchase Order"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <!-- PO Details card - manually collapsible/expandable at any time via the toggle row,
+                 not just auto-collapsing once valid (though it still does that too, once, as a
+                 convenience - see tryAutoCollapseHeader()). -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_card_rounded"
+                android:elevation="2dp">
+
+                <LinearLayout
+                    android:id="@+id/headerToggleRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@color/card_surface_tint"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="12dp">
+                    <TextView
+                        android:id="@+id/textHeaderTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Purchase Order Details"
+                        android:textStyle="bold"
+                        android:textSize="14sp"
+                        android:textColor="@color/purple_dark" />
+                    <TextView
+                        android:id="@+id/textHeaderChevron"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="&#9662;"
+                        android:textColor="@color/purple_primary"
+                        android:textStyle="bold"
+                        android:textSize="16sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/headerFieldsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView android:id="@+id/labelPurchaseOrder" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="10sp" android:textColor="#888888" android:text="Purchase Order #" />
+                    <EditText
+                        android:id="@+id/editPurchaseOrder"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true"
+                        android:imeOptions="actionNext" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp" android:gravity="center_vertical">
+                        <TextView android:id="@+id/labelVendor" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Vendor" android:textSize="10sp" android:textColor="#888888" />
+                        <Button
+                            android:id="@+id/linkManageVendorsFromPo"
+                            style="?android:attr/buttonStyleSmall"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="+ Add"
+                            android:textColor="@color/white"
+                            android:textSize="12sp"
+                            android:background="@drawable/bg_button_muted"
+                            android:paddingHorizontal="10dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp" />
+                    </LinearLayout>
+                    <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <Spinner android:id="@+id/spinnerVendor" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_dropdown_field" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical|end"
+                            android:layout_marginEnd="12dp"
+                            android:text="&#9662;"
+                            android:textColor="@color/purple_primary"
+                            android:textSize="16sp"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </FrameLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                            <TextView android:id="@+id/labelSubmittedDate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Submitted Date" android:textSize="10sp" android:textColor="#888888" />
+                            <EditText android:id="@+id/editSubmittedDate" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="yyyy-MM-dd" android:focusable="false" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:id="@+id/labelShippedDate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Shipped Date" android:textSize="10sp" android:textColor="#888888" />
+                            <EditText android:id="@+id/editShippedDate" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="yyyy-MM-dd" android:focusable="false" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Add Items - fixed (not in the ScrollView above), always visible, kept compact so it
+         doesn't eat the screen the way the old wrap_content full-height version did. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_rounded"
+        android:elevation="2dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
+        android:padding="10dp">
+
+        <LinearLayout
+            android:id="@+id/addItemsToggleRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:minHeight="32dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Add Items" android:textStyle="bold" android:textSize="13sp" android:textColor="@color/purple_dark" />
+            <TextView
+                android:id="@+id/addItemsChevron"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="&#9662;"
+                android:textColor="@color/purple_primary"
+                android:textStyle="bold"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/addItemsBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+        <TextView
+            android:id="@+id/textAddItemsHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Fill in Purchase Order # and Vendor above first."
+            android:textSize="11sp"
+            android:textColor="@color/error_red"
+            android:layout_marginTop="2dp" />
+
+        <!-- Scan Mode first/left and checked-by-default - this is a POS-terminal receiving flow,
+             scanning is the primary path and typing a search is the fallback. -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
+            <Button
+                android:id="@+id/buttonModeScan"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="📷 Scan Mode"
+                android:textSize="11sp"
+                android:background="@drawable/bg_button_primary"
+                android:textColor="@color/white"
+                android:minHeight="0dp" />
+            <Button
+                android:id="@+id/buttonModeManual"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Manual"
+                android:textSize="11sp"
+                android:background="@drawable/bg_button_muted"
+                android:textColor="@color/white"
+                android:minHeight="0dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/manualModeContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <EditText android:id="@+id/editItemSearch" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Search by name, code, or UPC" android:layout_marginTop="6dp" />
+
+            <LinearLayout
+                android:id="@+id/itemSearchResults"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@color/screen_background" />
+        </LinearLayout>
+
+        <!-- Real scans come in via ZebraScannerController (Zebra's official Scanner SDK, USB SNAPI
+             mode) directly to CreatePurchaseOrderActivity - not through this EditText at all. It
+             stays here only as a manual-typing fallback (e.g. a damaged/unreadable barcode). -->
+        <LinearLayout
+            android:id="@+id/scanModeContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Ready to scan..."
+                android:textSize="11sp"
+                android:textColor="#888888"
+                android:layout_marginTop="6dp" />
+
+            <EditText
+                android:id="@+id/editScanUpc"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="Or type UPC"
+                android:inputType="number"
+                android:singleLine="true"
+                android:imeOptions="actionDone"
+                android:textSize="13sp"
+                android:layout_marginTop="6dp" />
+
+            <ProgressBar
+                android:id="@+id/progressScanLookup"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textScanStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Fixed, always visible right above the scrolling Order Lines list. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Order Lines" android:textStyle="bold" android:textColor="@color/purple_dark" />
+        <TextView
+            android:id="@+id/textInvoiceTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="@color/purple_primary" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/textNoLines"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No items added yet."
+        android:textColor="#888888"
+        android:padding="12dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerLines"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="12dp"
+        tools:listitem="@layout/item_create_po_line" />
+
+    <TextView
+        android:id="@+id/textError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#C62828"
+        android:padding="16dp"
+        android:paddingTop="0dp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/buttonSubmit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:layout_marginTop="4dp"
+        android:text="Create Purchase Order"
+        android:background="@drawable/bg_button_primary"
+        android:textColor="@color/white" />
+
+</LinearLayout>

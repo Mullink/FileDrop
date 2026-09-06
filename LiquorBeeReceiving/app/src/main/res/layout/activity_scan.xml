@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/screen_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/purple_primary"
+        android:padding="12dp">
+        <TextView
+            android:id="@+id/textBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:gravity="center"
+            android:text="&#8249;"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="24sp"
+            android:clickable="true"
+            android:focusable="true" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Scan Invoice"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+    <!-- Scan is the only real content this screen ever shows (Manual is just a shortcut into
+         CreatePurchaseOrderActivity, see ScanActivity.kt) - a two-way toggle where one side does
+         nothing was confusing, so this is just the one "Manual" shortcut button, not a toggle. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/buttonModeManual"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:text="Manual"
+            android:background="@drawable/bg_button_muted"
+            android:textColor="@color/white" />
+        <!-- Re-entry point into StagedInvoiceListActivity/StagedInvoiceDetailActivity - this whole
+             flow has no other link into it anywhere in the app. -->
+        <Button
+            android:id="@+id/linkScannedInvoices"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Scanned Invoices"
+            android:background="@drawable/bg_button_muted"
+            android:textColor="@color/white" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#DDDDDD"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/textPendingInvoice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/purple_dark"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:visibility="gone" />
+
+    <!-- Mirrors the web page's "N invoices ready for review" notice - polled the same way
+         (OcrReadyForReviewService, GetMyBatches filtered to ReadyForReview, every 60s). -->
+    <LinearLayout
+        android:id="@+id/readyForReviewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#E8F5E9"
+        android:padding="8dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/textReadyForReviewHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textColor="@color/purple_dark" />
+        <LinearLayout
+            android:id="@+id/readyForReviewList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:text="Vendor" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="*"
+            android:textColor="@color/error_red"
+            android:textStyle="bold" />
+        <Button
+            android:id="@+id/linkManageVendors"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Manage Vendors"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:background="@drawable/bg_button_muted"
+            android:paddingHorizontal="10dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp" />
+    </LinearLayout>
+
+    <!-- The overlay "▾" makes it visually obvious this is a dropdown, not just a plain bordered
+         box - non-clickable/non-focusable so touches pass straight through to the Spinner beneath
+         it. -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <Spinner
+            android:id="@+id/spinnerTemplate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_dropdown_field" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="12dp"
+            android:text="&#9662;"
+            android:textColor="@color/purple_primary"
+            android:textSize="16sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </FrameLayout>
+
+    <!-- Camera/Import Image were removed from this screen on purpose: the Brother DS-640 USB path
+         is now proven viable on real hardware (permission/open/claim all succeed on the iMin Swan
+         Pro), and the decision is to commit to it rather than offer alternatives. The source
+         classes (CameraCaptureSource/FilePickerCaptureSource) are left in the codebase, just not
+         wired up here, in case they're wanted again later. -->
+    <Button
+        android:id="@+id/buttonBrother"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="START INVOICE SCAN"
+        android:background="@drawable/bg_button_primary"
+        android:textColor="@color/white" />
+
+    <!-- Real hardware can't be tested from this dev environment - this lists every USB device the
+         OS currently sees (VID/PID/interfaces) so it can be checked directly against the real
+         Brother DS-640 on the iMin terminal in the field. See capture/UsbDiagnostics.kt. -->
+    <Button
+        android:id="@+id/buttonUsbDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="🔌 USB Diagnostics"
+        android:background="@drawable/bg_button_muted"
+        android:textColor="@color/white" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerPages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        tools:listitem="@layout/item_page_thumbnail" />
+
+    <TextView
+        android:id="@+id/textStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp" />
+
+    <ProgressBar
+        android:id="@+id/progressSubmit"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:indeterminate="true" />
+
+    <Button
+        android:id="@+id/buttonSubmit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Submit Invoice"
+        android:background="@drawable/bg_button_primary"
+        android:textColor="@color/white" />
+
+    </LinearLayout>
+
+</LinearLayout>
