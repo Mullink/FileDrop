@@ -236,12 +236,17 @@ class ScanActivity : AppCompatActivity() {
     // Always shown (success or failure) so a real problem is visible on-screen without needing
     // Logcat access - the iMin Swan 1 Pro this ships to can't always be tethered to a dev machine.
     private fun showScanLogDialog(title: String, log: String) {
-        AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(log.ifBlank { "(no steps recorded)" })
             .setPositiveButton("OK", null)
-            .setNegativeButton("Email Log") { _, _ -> emailScanLog(title, log) }
-            .show()
+        // Raw diagnostic log emailing is an admin/support tool, not something a standard user
+        // scanning invoices should see even on a failed scan (this dialog itself still shows for
+        // everyone on failure - only the Email Log option is gated).
+        if (AdminModeState.isEnabled) {
+            builder.setNegativeButton("Email Log") { _, _ -> emailScanLog(title, log) }
+        }
+        builder.show()
     }
 
     // Sent server-side (InvoiceOcrScan/EmailDiagnosticLog) rather than via a device mailto: intent

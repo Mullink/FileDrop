@@ -77,6 +77,15 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="2dp"
+        android:text="Scan Invoice"
+        android:textColor="@color/purple_primary"
+        android:textStyle="bold"
+        android:textSize="20sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:text="Brother DS-640 Scan Invoice"
         android:textColor="@color/purple_primary"

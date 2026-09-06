@@ -130,7 +130,9 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
         val textComputedUnitCost = view.findViewById<TextView>(R.id.textComputedUnitCost)
 
         textItemName.text = item.name ?: item.sku ?: item.itemId
-        editUnitsPerCase.setText("1")
+        // Prefill from QuanticInventoryMetaDataReport (via SearchQuanticInventory's join) - this is
+        // the real configured units/case for the item, not a guess; user can still edit it.
+        editUnitsPerCase.setText((item.unitsPerCase ?: 1).toString())
         editPrice.setText(item.price?.let { "%.2f".format(it) } ?: "")
 
         fun refreshCasesMode() {

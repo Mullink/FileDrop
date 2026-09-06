@@ -3,8 +3,14 @@ package com.liquorbee.invoicescanner.ui
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.widget.EditText
 import android.widget.PopupMenu
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -13,10 +19,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.liquorbee.invoicescanner.R
 import com.liquorbee.invoicescanner.databinding.ActivityPurchaseOrderDetailBinding
+import com.liquorbee.invoicescanner.network.AddInvoiceLineRequestDto
 import com.liquorbee.invoicescanner.network.ApiClient
 import com.liquorbee.invoicescanner.network.PurchaseOrderHeaderDto
 import com.liquorbee.invoicescanner.network.PurchaseOrderLineDto
+import com.liquorbee.invoicescanner.network.QuanticInventorySearchResultDto
 import com.liquorbee.invoicescanner.network.SessionManager
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Native equivalent of pos-purchase-orders.ts's receive/detail flow (getInvoiceDetails,
@@ -64,8 +74,150 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         binding.detailToggleRow.setOnClickListener {
             setDetailCollapsed(binding.detailBody.visibility == View.VISIBLE)
         }
+        binding.buttonAddItem.setOnClickListener {
+            binding.addItemContainer.visibility = if (binding.addItemContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+        binding.editItemSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) { renderItemSearchResults(s?.toString() ?: "") }
+        })
 
         load()
+    }
+
+    private var searchJob: Job? = null
+
+    // Same server-side-search-per-keystroke pattern as StagedInvoiceDetailActivity's Add Item.
+    private fun renderItemSearchResults(query: String) {
+        searchJob?.cancel()
+        binding.itemSearchResults.removeAllViews()
+        val q = query.trim()
+        if (q.length < 2) return
+
+        searchJob = lifecycleScope.launch {
+            delay(300)
+            val results = try {
+                val api = ApiClient.buildAuthenticatedApi(session)
+                api.searchQuanticInventory(q)
+            } catch (e: Exception) {
+                return@launch
+            }
+            for (result in results.take(15)) {
+                val priceText = result.price?.let { "$%.2f".format(it) } ?: "$--"
+                val row = TextView(this@PurchaseOrderDetailActivity).apply {
+                    text = "${result.name ?: result.sku ?: result.itemId} — $priceText"
+                    setPadding(12, 12, 12, 12)
+                    setOnClickListener { showAddItemDialog(result) }
+                }
+                binding.itemSearchResults.addView(row)
+            }
+        }
+    }
+
+    // Reuses the exact same Cases/Bottles confirm dialog as StagedInvoiceDetailActivity's Add
+    // Item - same fields, same computed-per-unit-cost preview, just posting to AddInvoiceLine
+    // (a real InvoiceLines row) instead of AddStagedLineItem.
+    private fun showAddItemDialog(item: QuanticInventorySearchResultDto) {
+        val view = layoutInflater.inflate(R.layout.dialog_add_po_item, null)
+        val textItemName = view.findViewById<TextView>(R.id.textItemName)
+        val radioGroup = view.findViewById<RadioGroup>(R.id.radioReceiveType)
+        val radioCases = view.findViewById<RadioButton>(R.id.radioCases)
+        val textQtyLabel = view.findViewById<TextView>(R.id.textQtyLabel)
+        val editQty = view.findViewById<EditText>(R.id.editQty)
+        val textUnitCostLabel = view.findViewById<TextView>(R.id.textUnitCostLabel)
+        val editUnitCost = view.findViewById<EditText>(R.id.editUnitCost)
+        val editPrice = view.findViewById<EditText>(R.id.editPrice)
+        val unitsPerCaseContainer = view.findViewById<View>(R.id.unitsPerCaseContainer)
+        val editUnitsPerCase = view.findViewById<EditText>(R.id.editUnitsPerCase)
+        val textComputedUnitCost = view.findViewById<TextView>(R.id.textComputedUnitCost)
+
+        textItemName.text = item.name ?: item.sku ?: item.itemId
+        // Prefill from QuanticInventoryMetaDataReport (via SearchQuanticInventory's join) - the
+        // real configured units/case for the item, not a guess; user can still edit it.
+        editUnitsPerCase.setText((item.unitsPerCase ?: 1).toString())
+        editPrice.setText(item.price?.let { "%.2f".format(it) } ?: "")
+
+        fun refreshCasesMode() {
+            val isCases = radioGroup.checkedRadioButtonId == radioCases.id
+            unitsPerCaseContainer.visibility = if (isCases) View.VISIBLE else View.GONE
+            textUnitCostLabel.text = if (isCases) "Case Cost ($)" else "Unit Cost ($)"
+            textQtyLabel.text = if (isCases) "Cases" else "Bottles"
+        }
+        fun refreshComputedUnitCost() {
+            if (radioGroup.checkedRadioButtonId != radioCases.id) {
+                textComputedUnitCost.text = ""
+                return
+            }
+            val caseCost = editUnitCost.text.toString().toDoubleOrNull()
+            val unitsPerCase = editUnitsPerCase.text.toString().toIntOrNull()
+            textComputedUnitCost.text = if (caseCost != null && unitsPerCase != null && unitsPerCase > 0)
+                "= $%.4f per unit".format(caseCost / unitsPerCase) else ""
+        }
+        refreshCasesMode()
+        refreshComputedUnitCost()
+        radioGroup.setOnCheckedChangeListener { _, _ -> refreshCasesMode(); refreshComputedUnitCost() }
+        editUnitCost.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) { refreshComputedUnitCost() }
+        })
+        editUnitsPerCase.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) { refreshComputedUnitCost() }
+        })
+
+        AlertDialog.Builder(this)
+            .setTitle("Add Item")
+            .setView(view)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Add") { _, _ ->
+                val isBottles = radioGroup.checkedRadioButtonId != radioCases.id
+                val qty = editQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val enteredCost = editUnitCost.text.toString().toDoubleOrNull()
+                val price = editPrice.text.toString().toDoubleOrNull()
+                val unitsPerCase = if (isBottles) 1 else (editUnitsPerCase.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1)
+                val unitCost = enteredCost?.let { if (isBottles) it else it / unitsPerCase }
+                val caseCost = enteredCost?.let { if (isBottles) it * unitsPerCase else it }
+
+                addInvoiceLineItem(item, isBottles, unitsPerCase, qty, caseCost, unitCost, price)
+            }
+            .show()
+    }
+
+    private fun addInvoiceLineItem(
+        item: QuanticInventorySearchResultDto, isBottles: Boolean, unitsPerCase: Int, qty: Int,
+        caseCost: Double?, unitCost: Double?, price: Double?
+    ) {
+        val request = AddInvoiceLineRequestDto(
+            itemId = item.itemId,
+            itemCode = item.sku,
+            itemName = item.name,
+            displayName = item.name,
+            upcCode = item.upc,
+            unitsPerCase = if (isBottles) null else unitsPerCase,
+            shippedCases = if (isBottles) null else qty,
+            shippedUnits = if (isBottles) qty else qty * unitsPerCase,
+            caseCost = caseCost,
+            unitCost = unitCost,
+            currentUnitPrice = price,
+            suggestedUnitPrice = price
+        )
+
+        binding.editItemSearch.setText("")
+        binding.itemSearchResults.removeAllViews()
+
+        lifecycleScope.launch {
+            try {
+                val api = ApiClient.buildAuthenticatedApi(session)
+                api.addInvoiceLine(invoiceId, request)
+                showMessage("Item added.", isError = false)
+                load()
+            } catch (e: Exception) {
+                showMessage("Failed to add item: ${e.message}", isError = true)
+            }
+        }
     }
 
     private fun load() {
@@ -185,6 +337,8 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         binding.buttonSave.isEnabled = isStaged && !saving && !receiving
         // Matches the web exactly: Receive is blocked while there are unsaved edits - save first.
         binding.buttonReceive.isEnabled = isStaged && !saving && !receiving && !hasUnsavedChanges()
+        binding.buttonAddItem.visibility = if (isStaged) View.VISIBLE else View.GONE
+        if (!isStaged) binding.addItemContainer.visibility = View.GONE
     }
 
     private fun showMessage(text: String, isError: Boolean) {

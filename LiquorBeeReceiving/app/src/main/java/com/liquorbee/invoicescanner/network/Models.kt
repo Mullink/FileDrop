@@ -117,7 +117,8 @@ data class QuanticInventorySearchResultDto(
     val upc: String?,
     val qtyInHand: Double?,
     val price: Double?,
-    val vendorName: String?
+    val vendorName: String?,
+    val unitsPerCase: Int?
 )
 
 // Matches AddStagedLineItemRequestDto server-side. ItemCategory/SubCategory/Size/UnitsPerCase
@@ -140,6 +141,30 @@ data class AddStagedLineItemRequestDto(
 )
 
 data class AddStagedLineItemResponse(
+    val lineId: Long
+)
+
+// Matches Products/AddInvoiceLine's request body (HennyAdmin.DataAccess.Dtos.InvoiceLines) - same
+// endpoint/shape the web's pos-purchase-orders.ts submitAddItem() uses against a REAL (non-OCR)
+// purchase order. Only the fields the client actually computes are sent; everything else
+// (IsNotLinked/HasDuplicates/HasPriceChange/IsNewItem/BeforePrice/OriginalShippedCases) is set
+// server-side in ProductManagerRepository.AddInvoiceLineAsync.
+data class AddInvoiceLineRequestDto(
+    val itemId: String?,
+    val itemCode: String?,
+    val itemName: String?,
+    val displayName: String?,
+    val upcCode: String?,
+    val unitsPerCase: Int?,
+    val shippedCases: Int?,
+    val shippedUnits: Int?,
+    val caseCost: Double?,
+    val unitCost: Double?,
+    val currentUnitPrice: Double?,
+    val suggestedUnitPrice: Double?
+)
+
+data class AddInvoiceLineResponse(
     val lineId: Long
 )
 

@@ -113,6 +113,11 @@ interface HennyAdminApi {
     @DELETE("Products/RemoveInvoiceLine/{lineId}")
     suspend fun removeInvoiceLine(@Path("lineId") lineId: Long): Response<Unit>
 
+    // Same endpoint web's pos-purchase-orders.ts "Add Item" modal uses - inserts a real
+    // dbo.InvoiceLines row directly (no OCR staging involved), unlike AddStagedLineItem above.
+    @POST("Products/AddInvoiceLine/{invoiceId}")
+    suspend fun addInvoiceLine(@Path("invoiceId") invoiceId: Long, @Body request: AddInvoiceLineRequestDto): AddInvoiceLineResponse
+
     // No request body - confirmed from the C# signature (ReceiveOrder(int invoiceId, bool
     // printLabel), no [FromBody] parameter) that this receives whatever was last persisted via
     // UpdateStagedPurchaseOrderDetails above, NOT whatever the client happens to post; the web
