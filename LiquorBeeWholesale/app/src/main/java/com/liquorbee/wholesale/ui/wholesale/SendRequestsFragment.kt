@@ -52,7 +52,7 @@ class SendRequestsFragment : Fragment() {
     private var pendingPriceListIdToSelect: String? = null
 
     private fun loadPriceLists() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 priceLists = api.getAvailablePriceLists()
@@ -143,7 +143,7 @@ class SendRequestsFragment : Fragment() {
         )
 
         sending = true
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 api.createSubCustomerRequest(request)

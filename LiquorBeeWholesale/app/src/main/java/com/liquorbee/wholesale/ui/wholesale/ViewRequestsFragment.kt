@@ -37,7 +37,7 @@ class ViewRequestsFragment : Fragment() {
     private fun load() {
         binding.progressLoading.visibility = View.VISIBLE
         binding.textEmpty.visibility = View.GONE
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 val data = api.getManagementView()
@@ -65,7 +65,7 @@ class ViewRequestsFragment : Fragment() {
     }
 
     private fun cancelRequest(request: SubCustomerRequestDto) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 api.updateRequestStatus(UpdateSubCustomerRequestStatusDto(request.requestId, "Deleted", request.toEmailAddress))

@@ -50,7 +50,7 @@ class ViewOrdersFragment : Fragment() {
     private fun load() {
         binding.progressLoading.visibility = View.VISIBLE
         binding.textEmpty.visibility = View.GONE
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 allOrders = api.getWholesaleOpenOrders(includeAll = true, headersOnly = true)

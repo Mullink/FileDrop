@@ -21,13 +21,18 @@ enum class WholesaleTab(val label: String) {
     VIEW_ORDERS("View Orders")
 }
 
-/** Native equivalent of the Angular /wholesale/management page - one Activity, one Fragment per
- * tab, matching the web's exact tab set and order. */
+// Only these two are shown on this POS-terminal app - Send Requests/View Requests/Manage
+// Links/POS Customers are back-office tasks left to the web dashboard; the register only needs
+// to place and check on orders. The fragments for the other four tabs are kept in source (see
+// ui/wholesale/) in case this list is reopened later - just not reachable from this tab row.
+private val VISIBLE_TABS = listOf(WholesaleTab.PLACE_ORDER, WholesaleTab.VIEW_ORDERS)
+
+/** Native equivalent of the Angular /wholesale/management page's Place Order + View Orders tabs. */
 class WholesaleManagerActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityWholesaleManagerBinding
     private val tabViews = mutableMapOf<WholesaleTab, android.widget.TextView>()
-    private var activeTab: WholesaleTab = WholesaleTab.VIEW_ORDERS
+    private var activeTab: WholesaleTab = WholesaleTab.PLACE_ORDER
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +45,7 @@ class WholesaleManagerActivity : AppCompatActivity() {
     }
 
     private fun buildTabRow() {
-        WholesaleTab.values().forEach { tab ->
+        VISIBLE_TABS.forEach { tab ->
             val tabView = android.widget.TextView(this).apply {
                 text = tab.label
                 textSize = 13f

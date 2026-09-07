@@ -16,6 +16,9 @@
         android:theme="@style/Theme.LiquorBeeWholesale"
         android:usesCleartextTraffic="false">
 
+        <!-- Landscape-locked app-wide: the target hardware is the iMin Swan 1 Pro's fixed 15.6"
+             landscape POS display, not a handheld phone that gets rotated. -->
+
         <!-- Launcher entry point. android:exported="true" is REQUIRED (not optional) for any
              component with an intent-filter once targetSdk >= 31 - omitting it is a manifest
              merger error at build time, and getting it wrong at runtime is one of the classic
@@ -24,6 +27,7 @@
             android:name=".ui.LoginActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:screenOrientation="landscape"
             android:theme="@style/Theme.LiquorBeeWholesale">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -34,16 +38,19 @@
         <activity
             android:name=".ui.HomeActivity"
             android:exported="false"
+            android:screenOrientation="landscape"
             android:theme="@style/Theme.LiquorBeeWholesale" />
 
         <activity
             android:name=".ui.WholesaleManagerActivity"
             android:exported="false"
+            android:screenOrientation="landscape"
             android:theme="@style/Theme.LiquorBeeWholesale" />
 
         <activity
             android:name=".ui.OrderDetailActivity"
             android:exported="false"
+            android:screenOrientation="landscape"
             android:theme="@style/Theme.LiquorBeeWholesale" />
 
     </application>

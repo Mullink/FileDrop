@@ -39,7 +39,7 @@ class ManageLinksFragment : Fragment() {
     private fun load() {
         binding.progressLoading.visibility = View.VISIBLE
         binding.textEmpty.visibility = View.GONE
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 val data = api.getManagementView()
@@ -71,7 +71,7 @@ class ManageLinksFragment : Fragment() {
     }
 
     private fun unlink(requestId: String, email: String) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 api.updateRequestStatus(UpdateSubCustomerRequestStatusDto(requestId, "Deleted", email))

@@ -10,9 +10,15 @@ import com.liquorbee.wholesale.network.SubCustomerCatalogItemDto
 
 /** priceFor(item) matches the web's management-place-order.component.ts exactly: General
  * Customer mode uses retailPrice, a specific linked account uses subCustomerPrice - the backend
- * doesn't say which one to use, the client picks based on which mode is active. */
+ * doesn't say which one to use, the client picks based on which mode is active.
+ *
+ * Built to stay smooth with 10k-30k catalog rows: cart state is a Map keyed by itemCode (not row
+ * position), so RecyclerView's normal view-recycling is safe with no per-row identity bugs, and
+ * updateItems() swaps the backing list in place with notifyDataSetChanged() rather than
+ * reconstructing/re-attaching a whole new adapter on every search keystroke (see
+ * PlaceOrderFragment's debounced, background-thread filtering). */
 class CatalogAdapter(
-    private val items: List<SubCustomerCatalogItemDto>,
+    private var items: List<SubCustomerCatalogItemDto>,
     private val useSubCustomerPrice: Boolean,
     private val onCartChanged: () -> Unit
 ) : RecyclerView.Adapter<CatalogAdapter.ViewHolder>() {
@@ -21,6 +27,11 @@ class CatalogAdapter(
 
     inner class ViewHolder(val binding: ItemCatalogRowBinding) : RecyclerView.ViewHolder(binding.root) {
         var watcher: TextWatcher? = null
+    }
+
+    fun updateItems(newItems: List<SubCustomerCatalogItemDto>) {
+        items = newItems
+        notifyDataSetChanged()
     }
 
     fun priceFor(item: SubCustomerCatalogItemDto): Double = if (useSubCustomerPrice) item.subCustomerPrice else item.retailPrice
@@ -43,8 +54,10 @@ class CatalogAdapter(
         val b = holder.binding
         val price = priceFor(item)
 
-        b.textItemName.text = "${item.itemCode ?: "?"} — ${item.itemName ?: "(unnamed item)"}"
-        b.textItemMeta.text = "Qty on hand: ${item.qtyOnHand}  •  $%.2f".format(price)
+        b.textItemCode.text = item.itemCode ?: "—"
+        b.textItemName.text = item.itemName ?: "(unnamed item)"
+        b.textQtyOnHand.text = item.qtyOnHand.toString()
+        b.textPrice.text = "$%.2f".format(price)
 
         holder.watcher?.let { b.editQty.removeTextChangedListener(it) }
         val qty = quantities[item.itemCode] ?: 0

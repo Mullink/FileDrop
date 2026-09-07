@@ -46,7 +46,7 @@
                 style="?android:attr/buttonStyleSmall"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Load catalog"
+                android:text="Refresh Catalog"
                 android:background="@drawable/bg_button_dark"
                 android:textColor="@color/white" />
         </LinearLayout>
@@ -75,12 +75,27 @@
             android:layout_marginTop="24dp"
             android:visibility="gone" />
 
+        <!-- Column headers - weights must match item_catalog_row.xml exactly. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="10dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.9" android:text="CODE" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="3.2" android:text="ITEM" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="QTY ON HAND" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="PRICE" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="ORDER QTY" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" android:layout_marginHorizontal="6dp" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.2" android:gravity="end" android:text="LINE TOTAL" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+        </LinearLayout>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerCatalog"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="4dp" />
 
         <View
             android:layout_width="match_parent"

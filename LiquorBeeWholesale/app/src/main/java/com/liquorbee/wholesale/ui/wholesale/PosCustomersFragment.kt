@@ -38,7 +38,7 @@ class PosCustomersFragment : Fragment() {
     private fun load() {
         binding.progressLoading.visibility = View.VISIBLE
         binding.textEmpty.visibility = View.GONE
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 val customers = api.getWholesaleQuanticCustomers()
