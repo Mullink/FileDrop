@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -71,6 +72,7 @@ class PlaceOrderFragment : Fragment() {
         binding.textToggleOptions.setOnClickListener { toggleOptions() }
         binding.buttonLoadCatalog.setOnClickListener { loadCatalog() }
         binding.buttonSubmitOrder.setOnClickListener { submitOrder() }
+        binding.buttonViewCart.setOnClickListener { showCartDialog() }
         binding.editSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -201,6 +203,39 @@ class PlaceOrderFragment : Fragment() {
     private fun updateCartSummary() {
         val a = adapter ?: return
         binding.textCartTotal.text = "Cart: ${a.cartCount()} items — $%.2f".format(a.cartTotal())
+    }
+
+    // Read-and-remove view of the cart - useful after an edit-order handoff lands a whole order's
+    // worth of items into the cart at once and the cashier wants to double-check (or trim) it
+    // without hunting for each row in a 10k-30k-item catalog.
+    private fun showCartDialog() {
+        val a = adapter ?: return
+        val dialogBinding = com.liquorbee.wholesale.databinding.DialogViewCartBinding.inflate(layoutInflater)
+        dialogBinding.recyclerCartLines.layoutManager = LinearLayoutManager(requireContext())
+
+        fun currentLines() = a.cartLines()
+
+        lateinit var cartAdapter: CartLineAdapter
+
+        fun refresh() {
+            val lines = currentLines()
+            cartAdapter.updateLines(lines)
+            dialogBinding.recyclerCartLines.visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
+            dialogBinding.textCartEmpty.visibility = if (lines.isEmpty()) View.VISIBLE else View.GONE
+            dialogBinding.textCartDialogTotal.text = "Total: ${a.cartCount()} items — $%.2f".format(a.cartTotal())
+        }
+
+        cartAdapter = CartLineAdapter(currentLines(), { item -> a.priceFor(item) }) { itemCode ->
+            a.removeFromCart(itemCode)
+            updateCartSummary()
+            refresh()
+        }
+        dialogBinding.recyclerCartLines.adapter = cartAdapter
+        refresh()
+
+        val dialog = AlertDialog.Builder(requireContext()).setView(dialogBinding.root).create()
+        dialogBinding.buttonCloseCart.setOnClickListener { dialog.dismiss() }
+        dialog.show()
     }
 
     private fun submitOrder() {

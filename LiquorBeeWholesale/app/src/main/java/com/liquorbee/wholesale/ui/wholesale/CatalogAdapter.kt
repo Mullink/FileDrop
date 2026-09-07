@@ -3,6 +3,7 @@ package com.liquorbee.wholesale.ui.wholesale
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.liquorbee.wholesale.R
 import com.liquorbee.wholesale.databinding.ItemCatalogRowBinding
 import com.liquorbee.wholesale.network.SubCustomerCatalogItemDto
 
@@ -58,6 +59,15 @@ class CatalogAdapter(
     fun cartLines(): List<Pair<SubCustomerCatalogItemDto, Int>> =
         items.mapNotNull { item -> quantities[item.itemCode]?.takeIf { it > 0 }?.let { item to it } }
 
+    // Used by the View Cart dialog's remove button - the removed row may not be in the currently
+    // filtered/visible `items` list (e.g. cart built via search, then filter changed), so look up
+    // its position defensively rather than assuming it's bound right now.
+    fun removeFromCart(itemCode: String) {
+        quantities.remove(itemCode)
+        val index = items.indexOfFirst { it.itemCode == itemCode }
+        if (index >= 0) notifyItemChanged(index)
+    }
+
     fun cartTotal(): Double = cartLines().sumOf { (item, qty) -> priceFor(item) * qty }
     fun cartCount(): Int = cartLines().sumOf { it.second }
 
@@ -92,6 +102,9 @@ class CatalogAdapter(
             // making "10" instead of "1"); the hint still shows "0" as a placeholder.
             b.editQty.setText(if (qty > 0) qty.toString() else "")
             b.textLineTotal.text = if (qty > 0) "$%.2f".format(price * qty) else ""
+            // Highlight rows already in the cart - with 10k-30k catalog rows, a cashier scrolling
+            // back through the list needs an at-a-glance way to spot what's already been added.
+            b.root.setBackgroundResource(if (qty > 0) R.drawable.bg_card_in_cart else R.drawable.bg_card_rounded)
         }
         refreshQtyDisplay()
 

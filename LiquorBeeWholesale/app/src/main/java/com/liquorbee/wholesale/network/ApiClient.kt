@@ -12,10 +12,12 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.util.concurrent.TimeUnit
 
-/** Same dev API the desktop scanner and the web app already point at - see the approved plan
- * (sprightly-waddling-pearl.md) for confirmation this is the shared, already-live environment. */
+/** PROD HennyAdminOnline - confirmed via direct curl that GetLiveOpenOrders (and other newer
+ * SubCustomers endpoints) were deployed here, not to the dev-liquorbee slot this previously
+ * pointed at, which was still serving an older build (its GetLiveOpenOrders 200s with the Angular
+ * SPA shell instead of JSON - the route simply isn't there). */
 object ApiConfig {
-    const val BASE_URL = "https://dev-liquorbee-ege6cweqduhmayej.canadacentral-01.azurewebsites.net/"
+    const val BASE_URL = "https://hennyadmin.azurewebsites.net/"
 }
 
 // A plain suspend Retrofit call throws HttpException on any non-2xx response, and

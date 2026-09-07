@@ -37,6 +37,7 @@ class ViewOrdersFragment : Fragment() {
         session = SessionManager(requireContext())
         binding.recyclerList.layoutManager = LinearLayoutManager(requireContext())
         binding.swipeRefresh.setOnRefreshListener { load() }
+        binding.buttonRefresh.setOnClickListener { load() }
         binding.checkboxMyTerminal.setOnCheckedChangeListener { _, _ -> applyFilters() }
         binding.checkboxShowClosed.setOnCheckedChangeListener { _, _ -> applyFilters() }
         load()

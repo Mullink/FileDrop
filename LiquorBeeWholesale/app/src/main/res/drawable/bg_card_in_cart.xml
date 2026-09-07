@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Highlighted row for a catalog item already in the cart - same rounded shape as
+     bg_card_rounded, tinted and bordered so it's obvious at a glance while scrolling a large
+     catalog which rows already have a quantity entered. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#EFE9FB" />
+    <stroke android:width="1.5dp" android:color="@color/purple_primary" />
+    <corners android:radius="10dp" />
+</shape>

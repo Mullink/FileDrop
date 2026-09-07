@@ -17,7 +17,10 @@ import kotlinx.coroutines.launch
 
 /** SubCustomers/GetLiveOpenOrders - live snapshot straight from the POS (separate from View
  * Orders' DB-cached list), with a "Print" action per row that fetches the order's line items via
- * GetManagementOrderDetail and sends them to whichever USB thermal printer is connected. */
+ * GetManagementOrderDetail and sends them to whichever USB thermal printer is connected. Was
+ * briefly pointed at GetWholesaleOpenOrders instead when this endpoint appeared undeployed - it
+ * turned out to be deployed to PROD (hennyadmin.azurewebsites.net), not the dev-liquorbee slot the
+ * app was pointed at (see ApiClient.ApiConfig) - switched back once the base URL was corrected. */
 class OpenOrdersPrintingFragment : Fragment() {
 
     private var _binding: FragmentOpenOrdersPrintingBinding? = null
