@@ -10,9 +10,9 @@ import com.liquorbee.wholesale.databinding.DialogNumberPadBinding
  * always just a small integer. */
 object NumberPadDialog {
 
-    fun show(context: Context, title: String, initialValue: Int, onConfirm: (Int) -> Unit) {
+    fun show(context: Context, title: String, initialValue: Int, maxValue: Int? = null, onConfirm: (Int) -> Unit) {
         val binding = DialogNumberPadBinding.inflate(LayoutInflater.from(context))
-        binding.textPadTitle.text = title
+        binding.textPadTitle.text = if (maxValue != null) "$title (max $maxValue in stock)" else title
         var current = if (initialValue > 0) initialValue.toString() else ""
         fun render() { binding.textPadValue.text = current.ifEmpty { "0" } }
         render()
@@ -23,7 +23,9 @@ object NumberPadDialog {
 
         fun digit(d: String) {
             if (current.length >= 5) return // 99999 units is already an absurd single order line
-            current = if (current == "0") d else current + d
+            val candidate = if (current == "0") d else current + d
+            if (maxValue != null && (candidate.toIntOrNull() ?: 0) > maxValue) return
+            current = candidate
             render()
         }
 

@@ -42,9 +42,9 @@
         <Button android:id="@+id/pad7" style="@style/PadButton" android:text="7" />
         <Button android:id="@+id/pad8" style="@style/PadButton" android:text="8" />
         <Button android:id="@+id/pad9" style="@style/PadButton" android:text="9" />
-        <Button android:id="@+id/padClear" style="@style/PadButton" android:text="C" android:background="@drawable/bg_button_muted" android:textColor="@color/white" />
+        <Button android:id="@+id/padClear" style="@style/PadButton" android:text="C" />
         <Button android:id="@+id/pad0" style="@style/PadButton" android:text="0" />
-        <Button android:id="@+id/padBackspace" style="@style/PadButton" android:text="⌫" android:background="@drawable/bg_button_muted" android:textColor="@color/white" />
+        <Button android:id="@+id/padBackspace" style="@style/PadButton" android:text="⌫" />
     </GridLayout>
 
     <Button

@@ -58,6 +58,24 @@
             android:hint="Search code, name, UPC"
             android:layout_marginTop="8dp" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+            <CheckBox
+                android:id="@+id/checkboxInStockOnly"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="In Stock Only" />
+            <CheckBox
+                android:id="@+id/checkboxLimitQtyOnHand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Limit Qty On Hand"
+                android:layout_marginStart="16dp" />
+        </LinearLayout>
+
         <ProgressBar
             android:id="@+id/progressLoading"
             android:layout_width="wrap_content"
@@ -116,6 +134,13 @@
                 android:layout_weight="1"
                 android:textStyle="bold"
                 android:text="Cart: 0 items — $0.00" />
+            <ProgressBar
+                android:id="@+id/progressSubmitting"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="10dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
             <Button
                 android:id="@+id/buttonSubmitOrder"
                 android:layout_width="wrap_content"

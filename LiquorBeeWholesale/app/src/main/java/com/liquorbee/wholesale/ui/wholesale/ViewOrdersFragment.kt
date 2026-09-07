@@ -72,7 +72,10 @@ class ViewOrdersFragment : Fragment() {
     private fun applyFilters() {
         var filtered = allOrders.sortedByDescending { it.createdDate }
         if (binding.checkboxMyTerminal.isChecked && !preferredTerminalId.isNullOrBlank()) {
-            filtered = filtered.filter { it.serviceAreaId == preferredTerminalId }
+            // Matches the web exactly (sub-customer-management.component.ts): an order with no
+            // serviceAreaId at all has no "wrong terminal" to exclude it for, so it always shows -
+            // only an order stamped with a DIFFERENT terminal's ID gets filtered out.
+            filtered = filtered.filter { it.serviceAreaId.isNullOrBlank() || it.serviceAreaId == preferredTerminalId }
         }
         if (!binding.checkboxShowClosed.isChecked) {
             filtered = filtered.filter { it.orderStatus != 3 && it.orderStatus != 4 }

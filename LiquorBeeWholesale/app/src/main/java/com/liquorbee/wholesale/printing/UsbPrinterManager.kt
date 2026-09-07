@@ -55,8 +55,29 @@ class UsbPrinterManager(private val context: Context) {
             knownPrinterNames.any { known -> name.contains(known, ignoreCase = true) }
         }?.let { return it }
 
-        return devices.firstOrNull { device ->
+        devices.firstOrNull { device ->
             (0 until device.interfaceCount).any { i -> device.getInterface(i).interfaceClass == UsbConstants.USB_CLASS_PRINTER }
+        }?.let { return it }
+
+        // Confirmed live on an iMin terminal: UsbDevice.productName came back null for every
+        // device (Android can't read the USB string descriptor before permission is granted on
+        // this hardware), so the name match above never fires even with the printer plugged in -
+        // the manual picker just showed a wall of "Unknown device" entries. Eliminate the
+        // terminal's other known peripherals (internal hub controllers, the barcode scanner, a
+        // wired keyboard); if exactly one unclassified device is left, it's almost certainly the
+        // printer.
+        val candidates = devices.filterNot { isKnownNonPrinter(it) }
+        return candidates.singleOrNull()
+    }
+
+    private fun isKnownNonPrinter(device: UsbDevice): Boolean {
+        val name = device.productName
+        if (name != null && listOf("Bar Code Scanner", "Keyboard", "Host Controller", "Mouse").any { name.contains(it, ignoreCase = true) }) {
+            return true
+        }
+        return (0 until device.interfaceCount).any { i ->
+            val ifaceClass = device.getInterface(i).interfaceClass
+            ifaceClass == UsbConstants.USB_CLASS_HUB || ifaceClass == UsbConstants.USB_CLASS_HID
         }
     }
 

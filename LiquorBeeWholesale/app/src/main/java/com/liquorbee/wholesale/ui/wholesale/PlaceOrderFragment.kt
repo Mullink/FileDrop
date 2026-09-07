@@ -28,6 +28,14 @@ import kotlinx.coroutines.withContext
 
 private const val GENERAL_CUSTOMER_LABEL = "General Customer (Retail)"
 
+// The dbo.Settings row backing this (key Wholesale_OrderPlaced) was found to contain a literal
+// embedded CR/LF + indentation splitting the URL in two (a copy/paste artifact) - Glide then
+// fails to load it as a URL at all. Strip all whitespace from whatever comes back (a valid URL
+// never legitimately contains any) rather than editing the shared, web-facing PROD setting, and
+// fall back to this known-good URL outright if the fetch comes back null/blank.
+private const val FALLBACK_CELEBRATION_GIF_URL =
+    "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWhyYWg5ZGJmZmQwNGYyOW9naDRocThjdGdkajM3em04amR0YThieSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/iPg2OZbNXc7uM/giphy.gif"
+
 /** Browse the wholesale catalog and place a draft order - on behalf of a linked account (real
  * negotiated pricing) or as a "General Customer" retail order. Same dedicated catalog endpoint
  * (SubCustomers/GetCatalog) the web uses - not the shared Products/SearchQuanticInventory. */
@@ -64,6 +72,11 @@ class PlaceOrderFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) { applyFilter(s?.toString().orEmpty()) }
         })
+        // Both default OFF - a POS register still needs to be able to place a backorder for an
+        // out-of-stock item, so neither hiding those rows nor capping their order qty at 0 should
+        // happen unless a cashier explicitly opts in.
+        binding.checkboxInStockOnly.setOnCheckedChangeListener { _, _ -> applyFilter(binding.editSearch.text?.toString().orEmpty()) }
+        binding.checkboxLimitQtyOnHand.setOnCheckedChangeListener { _, isChecked -> adapter?.setLimitQtyOnHand(isChecked) }
         loadAccounts()
     }
 
@@ -109,10 +122,9 @@ class PlaceOrderFragment : Fragment() {
                 // thread (OkHttp dispatcher + coroutine adapter), so a 10k-30k-row response
                 // doesn't block the UI here even without an explicit withContext.
                 allItems = api.getCatalog(customerId, priceListId)
-                adapter = CatalogAdapter(allItems, useSubCustomerPrice = request != null) { updateCartSummary() }
+                adapter = CatalogAdapter(allItems, useSubCustomerPrice = request != null, limitQtyOnHand = binding.checkboxLimitQtyOnHand.isChecked) { updateCartSummary() }
                 binding.recyclerCatalog.adapter = adapter
-                binding.textEmpty.visibility = if (allItems.isEmpty()) View.VISIBLE else View.GONE
-                binding.textEmpty.text = "No items in this catalog."
+                applyFilter(binding.editSearch.text?.toString().orEmpty())
                 updateCartSummary()
             } catch (e: Exception) {
                 showMessage("Failed to load catalog: ${e.readableMessage()}", isError = true)
@@ -127,25 +139,28 @@ class PlaceOrderFragment : Fragment() {
     // recreated, so re-attaching/re-measuring the whole RecyclerView isn't repeated per keystroke
     // either - only the visible rows actually get rebound.
     private fun applyFilter(query: String) {
+        val inStockOnly = _binding?.checkboxInStockOnly?.isChecked ?: false
         searchJob?.cancel()
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(250)
             val filtered = withContext(Dispatchers.Default) {
-                if (query.isBlank()) allItems else allItems.filter {
-                    (it.itemName?.contains(query, ignoreCase = true) == true) ||
+                allItems
+                    .filter { query.isBlank() ||
+                        (it.itemName?.contains(query, ignoreCase = true) == true) ||
                         (it.itemCode?.contains(query, ignoreCase = true) == true) ||
                         (it.upc?.contains(query, ignoreCase = true) == true)
-                }
+                    }
+                    .filter { !inStockOnly || it.qtyOnHand > 0 }
             }
             val current = adapter
             if (current != null) {
                 current.updateItems(filtered)
             } else {
-                adapter = CatalogAdapter(filtered, useSubCustomerPrice = selectedRequest() != null) { updateCartSummary() }
+                adapter = CatalogAdapter(filtered, useSubCustomerPrice = selectedRequest() != null, limitQtyOnHand = _binding?.checkboxLimitQtyOnHand?.isChecked ?: false) { updateCartSummary() }
                 binding.recyclerCatalog.adapter = adapter
             }
             binding.textEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
-            binding.textEmpty.text = "No items match \"$query\"."
+            binding.textEmpty.text = if (query.isBlank()) "No items in this catalog." else "No items match \"$query\"."
         }
     }
 
@@ -167,6 +182,7 @@ class PlaceOrderFragment : Fragment() {
         val orderItems = lines.map { (item, qty) -> SubCustomerOrderItemDto(item.itemCode ?: "", qty, a.priceFor(item)) }
 
         submitting = true
+        setSubmitting(true)
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
@@ -181,15 +197,27 @@ class PlaceOrderFragment : Fragment() {
                     api.createGeneralOrder(CreateGeneralOrderDto(notes = null, items = orderItems))
                 }
                 submitting = false
+                setSubmitting(false)
                 showMessage("Order submitted.", isError = false)
                 showCelebration()
                 printJustPlacedOrder(response.orderId)
                 loadCatalog()
             } catch (e: Exception) {
                 submitting = false
+                setSubmitting(false)
                 showMessage("Failed to submit order: ${e.readableMessage()}", isError = true)
             }
         }
+    }
+
+    // Locks the button (not just the submitting flag - a disabled button also reads visually as
+    // "don't tap again") and shows a spinner in its place while the request is in flight, so a
+    // slow network round-trip can't result in a double order from an impatient second tap.
+    private fun setSubmitting(isSubmitting: Boolean) {
+        val b = _binding ?: return
+        b.buttonSubmitOrder.isEnabled = !isSubmitting
+        b.buttonSubmitOrder.alpha = if (isSubmitting) 0.5f else 1f
+        b.progressSubmitting.visibility = if (isSubmitting) View.VISIBLE else View.GONE
     }
 
     // Auto-prints to the register's receipt printer right after a successful submit - the native
@@ -226,8 +254,9 @@ class PlaceOrderFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                val url = api.getWholesaleSetting("Wholesale_OrderPlaced").value
-                android.util.Log.d("Celebration", "Wholesale_OrderPlaced url = $url")
+                val fetched = api.getWholesaleSetting("Wholesale_OrderPlaced").value
+                val url = fetched?.replace(Regex("\\s"), "").takeUnless { it.isNullOrBlank() } ?: FALLBACK_CELEBRATION_GIF_URL
+                android.util.Log.d("Celebration", "Wholesale_OrderPlaced url = $url (raw fetched = $fetched)")
                 if (!url.isNullOrBlank() && _binding != null) {
                     // Deliberately NOT .asGif() - that forces strict GIF-only decoding and fails
                     // silently (Glide's own async pipeline, not this coroutine, so a decode error
@@ -252,9 +281,10 @@ class PlaceOrderFragment : Fragment() {
                         .into(binding.imageCelebration)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("Celebration", "Failed to fetch Wholesale_OrderPlaced setting", e)
-                // No GIF this time - the dark overlay alone still reads as "submitted", not worth
-                // interrupting the user with an error over a purely decorative touch.
+                android.util.Log.e("Celebration", "Failed to fetch Wholesale_OrderPlaced setting, using fallback URL", e)
+                if (_binding != null) {
+                    Glide.with(this@PlaceOrderFragment).load(FALLBACK_CELEBRATION_GIF_URL).into(binding.imageCelebration)
+                }
             }
         }
 

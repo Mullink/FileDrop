@@ -22,10 +22,15 @@ import com.liquorbee.wholesale.network.SubCustomerCatalogItemDto
 class CatalogAdapter(
     private var items: List<SubCustomerCatalogItemDto>,
     private val useSubCustomerPrice: Boolean,
+    private var limitQtyOnHand: Boolean,
     private val onCartChanged: () -> Unit
 ) : RecyclerView.Adapter<CatalogAdapter.ViewHolder>() {
 
     private val quantities = mutableMapOf<String, Int>()
+
+    // Toggled live from the "Limit Qty On Hand" checkbox - no rebind needed, it's only read when
+    // the pad is actually opened.
+    fun setLimitQtyOnHand(value: Boolean) { limitQtyOnHand = value }
 
     inner class ViewHolder(val binding: ItemCatalogRowBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -74,7 +79,11 @@ class CatalogAdapter(
 
         val openPad = android.view.View.OnClickListener {
             val itemName = item.itemName ?: item.itemCode ?: "this item"
-            NumberPadDialog.show(b.root.context, itemName, quantities[item.itemCode] ?: 0) { newQty ->
+            // 0-qty-on-hand items stay orderable (backorder) unless the cashier explicitly turns
+            // this cap on - a cap of exactly item.qtyOnHand when it's 0 would otherwise silently
+            // block ordering an out-of-stock item, which is not what "limit" should mean here.
+            val cap = if (limitQtyOnHand && item.qtyOnHand > 0) item.qtyOnHand else null
+            NumberPadDialog.show(b.root.context, itemName, quantities[item.itemCode] ?: 0, cap) { newQty ->
                 val code = item.itemCode ?: return@show
                 if (newQty > 0) quantities[code] = newQty else quantities.remove(code)
                 refreshQtyDisplay()
