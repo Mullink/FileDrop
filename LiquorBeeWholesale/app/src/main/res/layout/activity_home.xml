@@ -114,23 +114,78 @@
                     android:textColor="@color/white"
                     android:gravity="center"
                     android:layout_marginTop="8dp" />
-            </LinearLayout>
 
-            <!-- Open-orders count, once wired - orange when &gt; 0, green at 0, matching the
-                 receiving app's badge convention. -->
-            <TextView
-                android:id="@+id/textOpenOrdersBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="top|end"
-                android:layout_margin="12dp"
-                android:minWidth="28dp"
-                android:minHeight="28dp"
-                android:gravity="center"
-                android:textColor="@color/white"
-                android:textStyle="bold"
-                android:textSize="14sp"
-                android:visibility="gone" />
+                <!-- Same three hero stats as the web's /wholesale/management landing page. -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="18dp">
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginHorizontal="14dp">
+                        <TextView
+                            android:id="@+id/textStatOpenOrders"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            android:textStyle="bold"
+                            android:textSize="22sp"
+                            android:textColor="@color/white" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Open Orders"
+                            android:textSize="11sp"
+                            android:textColor="#CCD1DC" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginHorizontal="14dp">
+                        <TextView
+                            android:id="@+id/textStatActiveLinks"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            android:textStyle="bold"
+                            android:textSize="22sp"
+                            android:textColor="@color/white" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Active Links"
+                            android:textSize="11sp"
+                            android:textColor="#CCD1DC" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginHorizontal="14dp">
+                        <TextView
+                            android:id="@+id/textStatOpenRequests"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            android:textStyle="bold"
+                            android:textSize="22sp"
+                            android:textColor="@color/white" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Open Requests"
+                            android:textSize="11sp"
+                            android:textColor="#CCD1DC" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
         </FrameLayout>
     </LinearLayout>
 

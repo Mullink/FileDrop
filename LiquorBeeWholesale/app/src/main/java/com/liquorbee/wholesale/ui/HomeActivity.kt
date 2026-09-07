@@ -55,6 +55,7 @@ class HomeActivity : AppCompatActivity() {
 
         refreshModeLabel()
         loadStoreName()
+        loadWholesaleStats()
         requestNotificationPermissionIfNeeded()
 
         lifecycleScope.launch {
@@ -94,6 +95,31 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshModeLabel()
+        loadWholesaleStats()
+    }
+
+    // Same three hero stats as the web's /wholesale/management landing page (Open orders, Active
+    // links, Open requests) - shown right on the tile so staff can see at a glance whether there's
+    // anything waiting, without opening Wholesale Manager first. Derived from the same
+    // GetManagementView + GetWholesaleOpenOrders calls the web uses - no separate stats endpoint.
+    private fun loadWholesaleStats() {
+        lifecycleScope.launch {
+            try {
+                val api = ApiClient.buildAuthenticatedApi(session)
+                val management = api.getManagementView()
+                val activeLinks = management.requests.count { it.status == "Linked" }
+                val openRequests = management.requests.count { it.status == "Proposed" }
+                binding.textStatActiveLinks.text = activeLinks.toString()
+                binding.textStatOpenRequests.text = openRequests.toString()
+
+                val orders = api.getWholesaleOpenOrders(includeAll = true, headersOnly = true)
+                val openOrders = orders.count { it.orderStatus != 3 && it.orderStatus != 4 }
+                binding.textStatOpenOrders.text = openOrders.toString()
+            } catch (e: Exception) {
+                // Purely decorative tile stats - a failed refresh just leaves the last-known
+                // (or placeholder "—") values in place rather than interrupting the home screen.
+            }
+        }
     }
 
     private fun onModeLabelTapped() {

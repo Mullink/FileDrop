@@ -65,6 +65,7 @@ class PlaceOrderFragment : Fragment() {
         // view cache smooths scrolling by keeping more recently-scrolled-off rows ready to reuse.
         binding.recyclerCatalog.setHasFixedSize(true)
         binding.recyclerCatalog.setItemViewCacheSize(24)
+        binding.textToggleOptions.setOnClickListener { toggleOptions() }
         binding.buttonLoadCatalog.setOnClickListener { loadCatalog() }
         binding.buttonSubmitOrder.setOnClickListener { submitOrder() }
         binding.editSearch.addTextChangedListener(object : TextWatcher {
@@ -101,6 +102,14 @@ class PlaceOrderFragment : Fragment() {
                 showMessage("Failed to load linked accounts: ${e.readableMessage()}", isError = true)
             }
         }
+    }
+
+    // Collapsed by default (see fragment_place_order.xml) to give the catalog list more room -
+    // the account picker and stock filters are occasional-use, unlike the search box.
+    private fun toggleOptions() {
+        val expanded = binding.groupOptions.visibility == View.VISIBLE
+        binding.groupOptions.visibility = if (expanded) View.GONE else View.VISIBLE
+        binding.textToggleOptions.text = if (expanded) "Options ▾" else "Options ▴"
     }
 
     private fun selectedRequest(): SubCustomerRequestDto? {

@@ -3,11 +3,8 @@ package com.liquorbee.wholesale.ui
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import com.liquorbee.wholesale.R
 import com.liquorbee.wholesale.databinding.ActivityWholesaleManagerBinding
-import com.liquorbee.wholesale.network.ApiClient
-import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.ui.wholesale.ManageLinksFragment
 import com.liquorbee.wholesale.ui.wholesale.OpenOrdersPrintingFragment
 import com.liquorbee.wholesale.ui.wholesale.PlaceOrderFragment
@@ -15,7 +12,6 @@ import com.liquorbee.wholesale.ui.wholesale.PosCustomersFragment
 import com.liquorbee.wholesale.ui.wholesale.SendRequestsFragment
 import com.liquorbee.wholesale.ui.wholesale.ViewOrdersFragment
 import com.liquorbee.wholesale.ui.wholesale.ViewRequestsFragment
-import kotlinx.coroutines.launch
 
 enum class WholesaleTab(val label: String) {
     SEND_REQUESTS("Send Requests"),
@@ -49,37 +45,6 @@ class WholesaleManagerActivity : AppCompatActivity() {
 
         buildTabRow()
         selectTab(activeTab)
-        loadDashboardStats()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Refresh after coming back from placing/printing an order elsewhere in the app.
-        loadDashboardStats()
-    }
-
-    // Same three hero stats as the web's /wholesale/management landing page (Open links, Active
-    // links, Open requests) - all derived from the same GetManagementView + GetWholesaleOpenOrders
-    // calls the web uses, no separate stats endpoint exists.
-    private fun loadDashboardStats() {
-        val session = SessionManager(this)
-        lifecycleScope.launch {
-            try {
-                val api = ApiClient.buildAuthenticatedApi(session)
-                val management = api.getManagementView()
-                val activeLinks = management.requests.count { it.status == "Linked" }
-                val openRequests = management.requests.count { it.status == "Proposed" }
-                binding.textStatActiveLinks.text = activeLinks.toString()
-                binding.textStatOpenRequests.text = openRequests.toString()
-
-                val orders = api.getWholesaleOpenOrders(includeAll = true, headersOnly = true)
-                val openOrders = orders.count { it.orderStatus != 3 && it.orderStatus != 4 }
-                binding.textStatOpenOrders.text = openOrders.toString()
-            } catch (e: Exception) {
-                // Purely decorative header stats - a failed refresh just leaves the last-known
-                // (or placeholder "—") values in place rather than interrupting the screen.
-            }
-        }
     }
 
     private fun buildTabRow() {
