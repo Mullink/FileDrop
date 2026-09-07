@@ -129,8 +129,10 @@
             android:paddingHorizontal="10dp"
             android:paddingTop="10dp">
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.9" android:text="CODE" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
-            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="3.2" android:text="ITEM" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2.6" android:text="ITEM" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="QTY ON HAND" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.9" android:gravity="center" android:text="PENDING SALE" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="AVAILABLE" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="PRICE" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="ORDER QTY" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" android:layout_marginHorizontal="6dp" />
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.2" android:gravity="end" android:text="LINE TOTAL" android:textStyle="bold" android:textSize="11sp" android:textColor="#888888" />
@@ -187,23 +189,51 @@
 
     </LinearLayout>
 
-    <!-- Wholesale_OrderPlaced celebration - same DB-driven Giphy GIF the web plays after a
-         successful order submit (see PlaceOrderFragment.showCelebration). Full-screen, tap to
-         dismiss early, otherwise auto-dismisses matching the web's ~4.6s timing. -->
+    <!-- Wholesale_OrderPlaced celebration - same DB-driven Giphy GIF + success-overlay modal the
+         web shows after a successful order submit (management-place-order.component: dark
+         backdrop, white rounded card, GIF, headline, message). Tap to dismiss early, otherwise
+         auto-dismisses matching the web's ~4.6s timing. -->
     <FrameLayout
         android:id="@+id/celebrationOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#CC000000"
+        android:background="#D1081029"
         android:visibility="gone"
         android:clickable="true"
         android:focusable="true">
-        <ImageView
-            android:id="@+id/imageCelebration"
-            android:layout_width="240dp"
-            android:layout_height="240dp"
+        <LinearLayout
+            android:layout_width="320dp"
+            android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:scaleType="centerCrop" />
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:background="@drawable/bg_modal_card"
+            android:padding="24dp"
+            android:elevation="8dp">
+            <ImageView
+                android:id="@+id/imageCelebration"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:scaleType="centerCrop"
+                android:background="@drawable/bg_dropdown_field" />
+            <TextView
+                android:id="@+id/textCelebrationHeadline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Order placed"
+                android:textStyle="bold"
+                android:textSize="26sp"
+                android:textColor="#0D1F36"
+                android:layout_marginTop="16dp" />
+            <TextView
+                android:id="@+id/textCelebrationMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#4F647A"
+                android:textSize="15sp"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
     </FrameLayout>
 
 </FrameLayout>

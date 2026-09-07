@@ -114,14 +114,14 @@
                 android:layout_marginTop="8dp"
                 android:nestedScrollingEnabled="false" />
 
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Notes" android:textSize="12sp" android:textColor="#666666" android:layout_marginTop="12dp" />
-            <EditText
-                android:id="@+id/editNotes"
+            <TextView
+                android:id="@+id/textNotes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minLines="2"
-                android:gravity="top"
-                android:inputType="textMultiLine" />
+                android:textSize="12sp"
+                android:textColor="#666666"
+                android:layout_marginTop="12dp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/textMessage"
@@ -145,12 +145,12 @@
                 android:orientation="horizontal"
                 android:layout_marginTop="8dp">
                 <Button
-                    android:id="@+id/buttonSave"
+                    android:id="@+id/buttonEditOrder"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="4dp"
-                    android:text="Save Changes"
+                    android:text="✎ Edit Order"
                     android:background="@drawable/bg_button_primary"
                     android:textColor="@color/white" />
                 <Button

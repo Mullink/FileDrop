@@ -15,10 +15,12 @@ import com.liquorbee.wholesale.databinding.FragmentPlaceOrderBinding
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.CreateGeneralOrderDto
 import com.liquorbee.wholesale.network.CreateSubCustomerDraftOrderDto
+import com.liquorbee.wholesale.network.PatchManagementOrderDto
 import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.network.SubCustomerCatalogItemDto
 import com.liquorbee.wholesale.network.SubCustomerOrderItemDto
 import com.liquorbee.wholesale.network.SubCustomerRequestDto
+import com.liquorbee.wholesale.network.WholesaleOpenOrderItemDto
 import com.liquorbee.wholesale.network.readableMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,6 +53,7 @@ class PlaceOrderFragment : Fragment() {
     private var adapter: CatalogAdapter? = null
     private var submitting = false
     private var searchJob: Job? = null
+    private var editSession: EditOrderPrefill.Session? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaceOrderBinding.inflate(inflater, container, false)
@@ -96,12 +99,30 @@ class PlaceOrderFragment : Fragment() {
                     it.toBusinessName ?: it.recipientBusinessName ?: it.toEmailAddress ?: "(Unnamed account)"
                 }
                 binding.spinnerAccount.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, labels)
-                binding.spinnerAccount.setSelection(0)
+
+                val prefill = EditOrderPrefill.consume()
+                if (prefill != null) {
+                    editSession = prefill
+                    val matchIndex = linkedRequests.indexOfFirst { it.requestId == prefill.requestId }
+                    binding.spinnerAccount.setSelection(if (matchIndex >= 0) matchIndex + 1 else 0)
+                    // Surface the account picker/filters up front while editing - the cashier
+                    // needs to see which account they're editing for, not just the search box.
+                    binding.groupOptions.visibility = View.VISIBLE
+                    binding.textToggleOptions.text = "Options ▴"
+                    updateSubmitButtonLabel()
+                    showMessage("Editing order ${prefill.orderNumber ?: prefill.orderId}.", isError = false)
+                } else {
+                    binding.spinnerAccount.setSelection(0)
+                }
                 loadCatalog()
             } catch (e: Exception) {
                 showMessage("Failed to load linked accounts: ${e.readableMessage()}", isError = true)
             }
         }
+    }
+
+    private fun updateSubmitButtonLabel() {
+        binding.buttonSubmitOrder.text = if (editSession != null) "Save Changes" else "Submit Order"
     }
 
     // Collapsed by default (see fragment_place_order.xml) to give the catalog list more room -
@@ -134,6 +155,10 @@ class PlaceOrderFragment : Fragment() {
                 adapter = CatalogAdapter(allItems, useSubCustomerPrice = request != null, limitQtyOnHand = binding.checkboxLimitQtyOnHand.isChecked) { updateCartSummary() }
                 binding.recyclerCatalog.adapter = adapter
                 applyFilter(binding.editSearch.text?.toString().orEmpty())
+                // Matches the web's applyEditOrderToCart: match the edited order's items against
+                // THIS freshly-loaded catalog by itemCode - a code no longer in the price list is
+                // silently dropped, same as the web.
+                editSession?.let { adapter?.applyQuantities(it.items.toMap()) }
                 updateCartSummary()
             } catch (e: Exception) {
                 showMessage("Failed to load catalog: ${e.readableMessage()}", isError = true)
@@ -187,11 +212,43 @@ class PlaceOrderFragment : Fragment() {
         }
         if (submitting) return
 
+        val editing = editSession
+        submitting = true
+        setSubmitting(true)
+
+        if (editing != null) {
+            val items = lines.map { (item, qty) ->
+                WholesaleOpenOrderItemDto(cartId = null, itemId = null, itemCode = item.itemCode, itemName = item.itemName, quantity = qty, price = a.priceFor(item), note = null)
+            }
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val api = ApiClient.buildAuthenticatedApi(session)
+                    val response = api.patchManagementOrder(PatchManagementOrderDto(orderId = editing.orderId, items = items, notes = editing.notes))
+                    submitting = false
+                    setSubmitting(false)
+                    if (response.isSuccessful) {
+                        val label = editing.orderNumber ?: editing.orderId
+                        showMessage("Order updated.", isError = false)
+                        showCelebration(label, headline = "Order updated", message = "Order $label updated successfully.")
+                        editSession = null
+                        updateSubmitButtonLabel()
+                        loadCatalog()
+                    } else {
+                        val body = response.errorBody()?.string()
+                        showMessage("Failed to update order: ${if (body.isNullOrBlank()) response.message() else body}", isError = true)
+                    }
+                } catch (e: Exception) {
+                    submitting = false
+                    setSubmitting(false)
+                    showMessage("Failed to update order: ${e.readableMessage()}", isError = true)
+                }
+            }
+            return
+        }
+
         val request = selectedRequest()
         val orderItems = lines.map { (item, qty) -> SubCustomerOrderItemDto(item.itemCode ?: "", qty, a.priceFor(item)) }
 
-        submitting = true
-        setSubmitting(true)
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
@@ -208,7 +265,8 @@ class PlaceOrderFragment : Fragment() {
                 submitting = false
                 setSubmitting(false)
                 showMessage("Order submitted.", isError = false)
-                showCelebration()
+                val label = response.orderNumber ?: response.orderId
+                showCelebration(label, headline = "Order placed", message = "Order $label submitted successfully.")
                 printJustPlacedOrder(response.orderId)
                 loadCatalog()
             } catch (e: Exception) {
@@ -251,14 +309,17 @@ class PlaceOrderFragment : Fragment() {
     }
 
     // Same celebration the web plays after a successful order (management-place-order.component.ts's
-    // playSuccessOverlay) - a DB-driven Giphy GIF (dbo.Settings, key Wholesale_OrderPlaced), not a
-    // bundled asset. Timing matches the web: visible immediately, starts fading at 3400ms, fully
-    // gone by 4600ms. Tapping it dismisses early.
-    private fun showCelebration() {
+    // playSuccessOverlay) - a white rounded modal card with a DB-driven Giphy GIF (dbo.Settings,
+    // key Wholesale_OrderPlaced) on top, "Order placed" headline, and "Order {label} submitted
+    // successfully." below it, matching the web's exact copy. Timing matches the web: visible
+    // immediately, starts fading at 3400ms, fully gone by 4600ms. Tapping it dismisses early.
+    private fun showCelebration(orderLabel: String?, headline: String = "Order placed", message: String? = null) {
         val b = _binding ?: return
         b.celebrationOverlay.alpha = 1f
         b.celebrationOverlay.visibility = View.VISIBLE
         b.celebrationOverlay.setOnClickListener { dismissCelebration() }
+        b.textCelebrationHeadline.text = headline
+        b.textCelebrationMessage.text = message ?: if (!orderLabel.isNullOrBlank()) "Order $orderLabel submitted successfully." else "The order has been placed."
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {

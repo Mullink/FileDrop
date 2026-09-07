@@ -39,7 +39,21 @@ class CatalogAdapter(
         notifyDataSetChanged()
     }
 
+    // Used by EditOrderPrefill: seed the cart from an existing order's items, matched by
+    // itemCode against this (freshly-loaded) catalog - same as the web's applyEditOrderToCart.
+    // Item codes that aren't in this catalog are silently dropped, same as the web.
+    fun applyQuantities(byItemCode: Map<String, Int>) {
+        quantities.clear()
+        quantities.putAll(byItemCode.filterValues { it > 0 })
+        notifyDataSetChanged()
+    }
+
     fun priceFor(item: SubCustomerCatalogItemDto): Double = if (useSubCustomerPrice) item.subCustomerPrice else item.retailPrice
+
+    // Matches the web's availableQty() exactly: on-hand minus whatever's already committed to
+    // other pending sales, floored at 0 - this, not raw qtyOnHand, is what "Limit Qty On Hand"
+    // actually caps against.
+    private fun availableQty(item: SubCustomerCatalogItemDto): Int = (item.qtyOnHand - item.pendingSaleQty).coerceAtLeast(0)
 
     fun cartLines(): List<Pair<SubCustomerCatalogItemDto, Int>> =
         items.mapNotNull { item -> quantities[item.itemCode]?.takeIf { it > 0 }?.let { item to it } }
@@ -61,10 +75,14 @@ class CatalogAdapter(
         val b = holder.binding
         val price = priceFor(item)
 
+        val available = availableQty(item)
         b.textItemCode.text = item.itemCode ?: "—"
         b.textItemName.text = item.itemName ?: "(unnamed item)"
         b.textQtyOnHand.text = item.qtyOnHand.toString()
         b.textQtyOnHand.setTextColor(qtyOnHandColor(item.qtyOnHand))
+        b.textPendingSale.text = item.pendingSaleQty.toString()
+        b.textAvailable.text = available.toString()
+        b.textAvailable.setTextColor(qtyOnHandColor(available))
         b.textPrice.text = "$%.2f".format(price)
         b.textPrice.setTextColor(COLOR_GOOD)
 
@@ -79,10 +97,10 @@ class CatalogAdapter(
 
         val openPad = android.view.View.OnClickListener {
             val itemName = item.itemName ?: item.itemCode ?: "this item"
-            // 0-qty-on-hand items stay orderable (backorder) unless the cashier explicitly turns
-            // this cap on - a cap of exactly item.qtyOnHand when it's 0 would otherwise silently
-            // block ordering an out-of-stock item, which is not what "limit" should mean here.
-            val cap = if (limitQtyOnHand && item.qtyOnHand > 0) item.qtyOnHand else null
+            // 0-available items stay orderable (backorder) unless the cashier explicitly turns
+            // this cap on - a cap of exactly 0 would otherwise silently block ordering an
+            // out-of-stock/fully-committed item, which is not what "limit" should mean here.
+            val cap = if (limitQtyOnHand && available > 0) available else null
             NumberPadDialog.show(b.root.context, itemName, quantities[item.itemCode] ?: 0, cap) { newQty ->
                 val code = item.itemCode ?: return@show
                 if (newQty > 0) quantities[code] = newQty else quantities.remove(code)

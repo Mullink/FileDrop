@@ -27,20 +27,23 @@
             android:textSize="11sp" />
     </LinearLayout>
 
-    <EditText
-        android:id="@+id/editQty"
-        android:layout_width="48dp"
+    <TextView
+        android:id="@+id/textQty"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:inputType="number"
+        android:textSize="13sp"
         android:gravity="center"
+        android:minWidth="36dp"
         android:layout_marginStart="6dp" />
 
-    <EditText
-        android:id="@+id/editPrice"
-        android:layout_width="64dp"
+    <TextView
+        android:id="@+id/textPrice"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:inputType="numberDecimal"
-        android:gravity="center"
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        android:gravity="end"
+        android:minWidth="56dp"
         android:layout_marginStart="6dp" />
 
 </LinearLayout>

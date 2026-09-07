@@ -35,7 +35,7 @@ class LiveOrdersPrintAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val o = orders[position]
         val b = holder.binding
-        b.textOrderNumber.text = o.orderNumber ?: o.orderId ?: "(no order #)"
+        b.textOrderNumber.text = displayOrderLabel(o.orderNumber, o.orderId)
         b.textCustomer.text = o.customerName ?: "—"
         b.textTotal.text = "$%.2f".format(o.total)
         b.textBalance.text = "Bal: $%.2f".format(o.balance)

@@ -7,6 +7,16 @@ import androidx.recyclerview.widget.RecyclerView
 import com.liquorbee.wholesale.databinding.ItemOrderRowBinding
 import com.liquorbee.wholesale.network.WholesaleOpenOrderDto
 
+// The backend already excludes wholesale orders with no real PosOrderNumber from
+// GetWholesaleOpenOrders (they never reached the POS), so orderNumber should always be present
+// here - but defensively never surface the internal "WH-" external id if it ever leaks through;
+// show "Pending" instead of a raw code that means nothing to a cashier.
+fun displayOrderLabel(orderNumber: String?, orderId: String?): String {
+    if (!orderNumber.isNullOrBlank()) return orderNumber
+    if (!orderId.isNullOrBlank() && !orderId.startsWith("WH-", ignoreCase = true)) return orderId
+    return "Pending"
+}
+
 // orderStatus: 1=Open, 2=Ready, 3=Closed, 4=Cancelled (see LiquorBeePosOrderService.MapStringStatusToInt).
 fun orderStatusLabel(status: Int): String = when (status) {
     2 -> "Ready"
@@ -38,7 +48,7 @@ class OrdersAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val o = orders[position]
         val b = holder.binding
-        b.textOrderNumber.text = o.orderNumber ?: o.orderId ?: "(no order #)"
+        b.textOrderNumber.text = displayOrderLabel(o.orderNumber, o.orderId)
         b.textCustomer.text = o.customerName ?: o.customerEmail ?: o.customerPhone ?: "—"
         b.textTotal.text = "$%.2f".format(o.total)
         b.textBalance.text = "Bal: $%.2f".format(o.balance)

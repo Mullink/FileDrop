@@ -118,6 +118,7 @@ data class SubCustomerCatalogItemDto(
     val itemCode: String?,
     val itemName: String?,
     val qtyOnHand: Int,
+    val pendingSaleQty: Int = 0,
     val cost: Double,
     val retailPrice: Double,
     val subCustomerPrice: Double,
