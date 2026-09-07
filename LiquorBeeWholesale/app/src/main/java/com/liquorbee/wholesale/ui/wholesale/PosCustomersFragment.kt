@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.liquorbee.wholesale.databinding.FragmentWholesaleListBinding
+import com.liquorbee.wholesale.network.readableMessage
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.ui.WholesaleManagerActivity
@@ -56,7 +57,7 @@ class PosCustomersFragment : Fragment() {
                 binding.textEmpty.text = "No POS customers found. Make sure your POS customer list is configured."
             } catch (e: Exception) {
                 binding.textEmpty.visibility = View.VISIBLE
-                binding.textEmpty.text = "Failed to load POS customers: ${e.message}"
+                binding.textEmpty.text = "Failed to load POS customers: ${e.readableMessage()}"
             } finally {
                 binding.progressLoading.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false

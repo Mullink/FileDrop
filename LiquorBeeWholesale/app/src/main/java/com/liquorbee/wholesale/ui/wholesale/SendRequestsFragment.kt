@@ -11,6 +11,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.liquorbee.wholesale.databinding.FragmentSendRequestsBinding
+import com.liquorbee.wholesale.network.readableMessage
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.CreateSubCustomerRequestDto
 import com.liquorbee.wholesale.network.CustomerSenderProfileDto
@@ -66,7 +67,7 @@ class SendRequestsFragment : Fragment() {
                     if (index >= 0) binding.spinnerPriceList.setSelection(index)
                 }
             } catch (e: Exception) {
-                showMessage("Failed to load price lists: ${e.message}", isError = true)
+                showMessage("Failed to load price lists: ${e.readableMessage()}", isError = true)
             }
         }
     }
@@ -154,7 +155,7 @@ class SendRequestsFragment : Fragment() {
                 binding.editNotes.setText("")
             } catch (e: Exception) {
                 sending = false
-                showMessage("Failed to send request: ${e.message}", isError = true)
+                showMessage("Failed to send request: ${e.readableMessage()}", isError = true)
             }
         }
     }

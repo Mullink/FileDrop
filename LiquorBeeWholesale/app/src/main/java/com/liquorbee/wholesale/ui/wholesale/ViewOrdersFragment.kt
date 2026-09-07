@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.liquorbee.wholesale.databinding.FragmentViewOrdersBinding
+import com.liquorbee.wholesale.network.readableMessage
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.network.WholesaleOpenOrderDto
@@ -60,7 +61,7 @@ class ViewOrdersFragment : Fragment() {
                 applyFilters()
             } catch (e: Exception) {
                 binding.textEmpty.visibility = View.VISIBLE
-                binding.textEmpty.text = "Failed to load orders: ${e.message}"
+                binding.textEmpty.text = "Failed to load orders: ${e.readableMessage()}"
             } finally {
                 binding.progressLoading.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false

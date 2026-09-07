@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.liquorbee.wholesale.databinding.ActivityOrderDetailBinding
+import com.liquorbee.wholesale.network.readableMessage
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.PatchManagementOrderDto
 import com.liquorbee.wholesale.network.SessionManager
@@ -54,7 +55,7 @@ class OrderDetailActivity : AppCompatActivity() {
                 order = detail
                 render(detail)
             } catch (e: Exception) {
-                showMessage("Failed to load this order: ${e.message}", isError = true)
+                showMessage("Failed to load this order: ${e.readableMessage()}", isError = true)
             } finally {
                 binding.progressLoading.visibility = View.GONE
             }
@@ -89,7 +90,7 @@ class OrderDetailActivity : AppCompatActivity() {
                 load()
             } catch (e: Exception) {
                 saving = false
-                showMessage("Failed to save changes: ${e.message}", isError = true)
+                showMessage("Failed to save changes: ${e.readableMessage()}", isError = true)
             }
         }
     }
@@ -110,7 +111,7 @@ class OrderDetailActivity : AppCompatActivity() {
                 api.deleteManagementOrder(orderId)
                 finish()
             } catch (e: Exception) {
-                showMessage("Failed to delete this order: ${e.message}", isError = true)
+                showMessage("Failed to delete this order: ${e.readableMessage()}", isError = true)
             }
         }
     }

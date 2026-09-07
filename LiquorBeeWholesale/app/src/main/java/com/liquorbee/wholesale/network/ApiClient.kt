@@ -18,6 +18,16 @@ object ApiConfig {
     const val BASE_URL = "https://dev-liquorbee-ege6cweqduhmayej.canadacentral-01.azurewebsites.net/"
 }
 
+// A plain suspend Retrofit call throws HttpException on any non-2xx response, and
+// HttpException.message is just the generic status line ("HTTP 422 Unprocessable Entity") - the
+// actual reason (e.g. SubCustomers/CreateGeneralOrder's "Order could not be submitted...", or a
+// ValidationException's message) is in the response body, which this surfaces instead.
+fun Throwable.readableMessage(): String {
+    val httpException = this as? retrofit2.HttpException ?: return message ?: toString()
+    val body = try { httpException.response()?.errorBody()?.string() } catch (e: Exception) { null }
+    return if (!body.isNullOrBlank()) body else httpException.message()
+}
+
 class AuthInterceptor(private val session: SessionManager) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = session.jwtToken

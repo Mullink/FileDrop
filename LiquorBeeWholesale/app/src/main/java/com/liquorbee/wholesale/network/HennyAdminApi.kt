@@ -73,4 +73,7 @@ interface HennyAdminApi {
 
     @DELETE("SubCustomers/DeleteManagementOrder")
     suspend fun deleteManagementOrder(@Query("orderId") orderId: String): Response<Unit>
+
+    @GET("SubCustomers/GetLiveOpenOrders")
+    suspend fun getLiveOpenOrders(): List<WholesaleLiveOpenOrderDto>
 }

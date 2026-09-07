@@ -176,6 +176,22 @@ data class WholesaleOpenOrderDto(
     val items: List<WholesaleOpenOrderItemDto>?
 )
 
+// ---- Open Orders Printing ----
+
+// SubCustomers/GetLiveOpenOrders - pulls straight from Quantic POS (not the DB-cached
+// GetWholesaleOpenOrders above), so it's a slimmer, live-only snapshot: no items/phone/email/
+// notes/referenceNumber. Fetch GetManagementOrderDetail(orderId) separately to get line items
+// for the printed receipt.
+data class WholesaleLiveOpenOrderDto(
+    val orderId: String?,
+    val orderNumber: String?,
+    val customerName: String?,
+    val orderStatus: Int,
+    val total: Double,
+    val balance: Double,
+    val createdDate: String?
+)
+
 data class WholesaleOpenOrderItemDto(
     val cartId: String?,
     val itemId: String?,

@@ -6,6 +6,7 @@ import androidx.fragment.app.Fragment
 import com.liquorbee.wholesale.R
 import com.liquorbee.wholesale.databinding.ActivityWholesaleManagerBinding
 import com.liquorbee.wholesale.ui.wholesale.ManageLinksFragment
+import com.liquorbee.wholesale.ui.wholesale.OpenOrdersPrintingFragment
 import com.liquorbee.wholesale.ui.wholesale.PlaceOrderFragment
 import com.liquorbee.wholesale.ui.wholesale.PosCustomersFragment
 import com.liquorbee.wholesale.ui.wholesale.SendRequestsFragment
@@ -18,14 +19,16 @@ enum class WholesaleTab(val label: String) {
     MANAGE_LINKS("Manage Links"),
     POS_CUSTOMERS("POS Customers"),
     PLACE_ORDER("Place Order"),
-    VIEW_ORDERS("View Orders")
+    VIEW_ORDERS("View Orders"),
+    OPEN_ORDERS_PRINTING("Open Orders Printing")
 }
 
-// Only these two are shown on this POS-terminal app - Send Requests/View Requests/Manage
+// Only these three are shown on this POS-terminal app - Send Requests/View Requests/Manage
 // Links/POS Customers are back-office tasks left to the web dashboard; the register only needs
-// to place and check on orders. The fragments for the other four tabs are kept in source (see
-// ui/wholesale/) in case this list is reopened later - just not reachable from this tab row.
-private val VISIBLE_TABS = listOf(WholesaleTab.PLACE_ORDER, WholesaleTab.VIEW_ORDERS)
+// to place orders, check on them, and print them. The fragments for the other four tabs are kept
+// in source (see ui/wholesale/) in case this list is reopened later - just not reachable from
+// this tab row.
+private val VISIBLE_TABS = listOf(WholesaleTab.PLACE_ORDER, WholesaleTab.VIEW_ORDERS, WholesaleTab.OPEN_ORDERS_PRINTING)
 
 /** Native equivalent of the Angular /wholesale/management page's Place Order + View Orders tabs. */
 class WholesaleManagerActivity : AppCompatActivity() {
@@ -83,6 +86,7 @@ class WholesaleManagerActivity : AppCompatActivity() {
             WholesaleTab.POS_CUSTOMERS -> PosCustomersFragment()
             WholesaleTab.PLACE_ORDER -> PlaceOrderFragment()
             WholesaleTab.VIEW_ORDERS -> ViewOrdersFragment()
+            WholesaleTab.OPEN_ORDERS_PRINTING -> OpenOrdersPrintingFragment()
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment)

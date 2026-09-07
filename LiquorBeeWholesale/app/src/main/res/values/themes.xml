@@ -6,4 +6,18 @@
         <item name="colorAccent">@color/purple_primary</item>
         <item name="android:statusBarColor" tools:targetApi="l">@color/purple_dark</item>
     </style>
+
+    <!-- backgroundTint=@null is required, not optional - Theme.MaterialComponents auto-inflates a
+         plain Button as MaterialButton, which tints ANY android:background (even a custom solid
+         shape) with colorPrimary unless explicitly cleared, silently turning every key navy. -->
+    <style name="PadButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">72dp</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/purple_primary</item>
+        <item name="android:background">@color/card_surface_tint</item>
+        <item name="android:backgroundTint">@null</item>
+    </style>
 </resources>

@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.liquorbee.wholesale.databinding.FragmentWholesaleListBinding
+import com.liquorbee.wholesale.network.readableMessage
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.network.SubCustomerDto
@@ -52,7 +53,7 @@ class ManageLinksFragment : Fragment() {
                 binding.textEmpty.text = "No linked wholesale accounts yet."
             } catch (e: Exception) {
                 binding.textEmpty.visibility = View.VISIBLE
-                binding.textEmpty.text = "Failed to load links: ${e.message}"
+                binding.textEmpty.text = "Failed to load links: ${e.readableMessage()}"
             } finally {
                 binding.progressLoading.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false
@@ -78,7 +79,7 @@ class ManageLinksFragment : Fragment() {
                 load()
             } catch (e: Exception) {
                 binding.textEmpty.visibility = View.VISIBLE
-                binding.textEmpty.text = "Failed to unlink: ${e.message}"
+                binding.textEmpty.text = "Failed to unlink: ${e.readableMessage()}"
             }
         }
     }

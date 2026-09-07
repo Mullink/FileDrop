@@ -19,6 +19,7 @@ import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.network.SubCustomerCatalogItemDto
 import com.liquorbee.wholesale.network.SubCustomerOrderItemDto
 import com.liquorbee.wholesale.network.SubCustomerRequestDto
+import com.liquorbee.wholesale.network.readableMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -84,7 +85,7 @@ class PlaceOrderFragment : Fragment() {
                 binding.spinnerAccount.setSelection(0)
                 loadCatalog()
             } catch (e: Exception) {
-                showMessage("Failed to load linked accounts: ${e.message}", isError = true)
+                showMessage("Failed to load linked accounts: ${e.readableMessage()}", isError = true)
             }
         }
     }
@@ -114,7 +115,7 @@ class PlaceOrderFragment : Fragment() {
                 binding.textEmpty.text = "No items in this catalog."
                 updateCartSummary()
             } catch (e: Exception) {
-                showMessage("Failed to load catalog: ${e.message}", isError = true)
+                showMessage("Failed to load catalog: ${e.readableMessage()}", isError = true)
             } finally {
                 binding.progressLoading.visibility = View.GONE
             }
@@ -186,7 +187,7 @@ class PlaceOrderFragment : Fragment() {
                 loadCatalog()
             } catch (e: Exception) {
                 submitting = false
-                showMessage("Failed to submit order: ${e.message}", isError = true)
+                showMessage("Failed to submit order: ${e.readableMessage()}", isError = true)
             }
         }
     }
