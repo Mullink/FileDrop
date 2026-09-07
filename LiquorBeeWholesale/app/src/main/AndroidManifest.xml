@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required at runtime on Android 13+ (targetSdk 33) for AppNotifications to actually show
+         anything - requested from HomeActivity right after login. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".WholesaleApp"
+        android:allowBackup="false"
+        tools:replace="android:allowBackup"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.LiquorBeeWholesale"
+        android:usesCleartextTraffic="false">
+
+        <!-- Launcher entry point. android:exported="true" is REQUIRED (not optional) for any
+             component with an intent-filter once targetSdk >= 31 - omitting it is a manifest
+             merger error at build time, and getting it wrong at runtime is one of the classic
+             causes of an installed app silently refusing to open. -->
+        <activity
+            android:name=".ui.LoginActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.LiquorBeeWholesale">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.HomeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiquorBeeWholesale" />
+
+        <activity
+            android:name=".ui.WholesaleManagerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiquorBeeWholesale" />
+
+        <activity
+            android:name=".ui.OrderDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiquorBeeWholesale" />
+
+    </application>
+</manifest>

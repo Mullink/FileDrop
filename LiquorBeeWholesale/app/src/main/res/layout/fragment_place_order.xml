@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Place an order"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:textColor="@color/purple_primary" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select a linked account and place a draft order on their behalf."
+            android:textColor="#888888"
+            android:textSize="12sp"
+            android:layout_marginBottom="10dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp">
+                <Spinner
+                    android:id="@+id/spinnerAccount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_dropdown_field" />
+            </FrameLayout>
+            <Button
+                android:id="@+id/buttonLoadCatalog"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Load catalog"
+                android:background="@drawable/bg_button_dark"
+                android:textColor="@color/white" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/editSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Search code, name, UPC"
+            android:layout_marginTop="8dp" />
+
+        <ProgressBar
+            android:id="@+id/progressLoading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="16dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#888888"
+            android:gravity="center"
+            android:layout_marginTop="24dp"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerCatalog"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="8dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#DEDDD1"
+            android:layout_marginTop="4dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+            <TextView
+                android:id="@+id/textCartTotal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textStyle="bold"
+                android:text="Cart: 0 items — $0.00" />
+            <Button
+                android:id="@+id/buttonSubmitOrder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Submit Order"
+                android:background="@drawable/bg_button_primary"
+                android:textColor="@color/white" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Wholesale_OrderPlaced celebration - same DB-driven Giphy GIF the web plays after a
+         successful order submit (see PlaceOrderFragment.showCelebration). Full-screen, tap to
+         dismiss early, otherwise auto-dismisses matching the web's ~4.6s timing. -->
+    <FrameLayout
+        android:id="@+id/celebrationOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+        <ImageView
+            android:id="@+id/imageCelebration"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_gravity="center"
+            android:scaleType="centerCrop" />
+    </FrameLayout>
+
+</FrameLayout>

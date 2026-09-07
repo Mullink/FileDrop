@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_card_rounded"
+    android:padding="12dp"
+    android:layout_marginBottom="10dp"
+    android:elevation="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:id="@+id/textBusinessName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:textColor="@color/purple_primary" />
+        <TextView
+            android:id="@+id/textStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="10sp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#666666"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/textPriceList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#888888"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/textDates"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#AAAAAA"
+        android:textSize="11sp"
+        android:layout_marginTop="2dp" />
+
+    <Button
+        android:id="@+id/buttonCancel"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="6dp"
+        android:text="Cancel Request"
+        android:textSize="11sp"
+        android:background="@drawable/bg_button_danger"
+        android:textColor="@color/white"
+        android:paddingHorizontal="10dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:visibility="gone" />
+
+</LinearLayout>

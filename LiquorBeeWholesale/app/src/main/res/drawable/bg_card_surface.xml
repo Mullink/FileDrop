@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tinted card container so a screen's distinct sections (e.g. "Manual PO" vs "Scan") read as
+     separate panels instead of one continuous list of controls. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/card_surface_tint" />
+    <corners android:radius="10dp" />
+</shape>

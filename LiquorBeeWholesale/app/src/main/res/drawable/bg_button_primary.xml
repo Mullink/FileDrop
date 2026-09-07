@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Explicit solid-fill drawable for primary buttons, used instead of relying on
+     android:backgroundTint - guarantees the navy fill actually renders under the white text no
+     matter how the platform/theme resolves a plain Button's default background drawable. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/purple_primary" />
+    <corners android:radius="8dp" />
+</shape>

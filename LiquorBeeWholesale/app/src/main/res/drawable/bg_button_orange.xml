@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same solid-fill pattern as bg_button_primary.xml, using status_staged's orange so this button
+     reads as a distinct, attention-grabbing action rather than another muted/primary button. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/status_staged" />
+    <corners android:radius="8dp" />
+</shape>
