@@ -266,11 +266,24 @@ class PlaceOrderFragment : Fragment() {
             dialogBinding.textCartDialogTotal.text = "Total: ${a.cartCount()} items — $%.2f".format(a.cartTotal())
         }
 
-        cartAdapter = CartLineAdapter(currentLines(), { item -> a.priceFor(item) }) { itemCode ->
-            a.removeFromCart(itemCode)
-            updateCartSummary()
-            refresh()
-        }
+        cartAdapter = CartLineAdapter(
+            currentLines(),
+            priceFor = { item -> a.priceFor(item) },
+            onEditQty = { item, currentQty ->
+                val itemName = item.itemName ?: item.itemCode ?: "this item"
+                NumberPadDialog.show(requireContext(), itemName, currentQty, a.capFor(item)) { newQty ->
+                    val code = item.itemCode ?: return@show
+                    a.setQuantity(code, newQty)
+                    updateCartSummary()
+                    refresh()
+                }
+            },
+            onRemove = { itemCode ->
+                a.removeFromCart(itemCode)
+                updateCartSummary()
+                refresh()
+            }
+        )
         dialogBinding.recyclerCartLines.adapter = cartAdapter
         refresh()
 

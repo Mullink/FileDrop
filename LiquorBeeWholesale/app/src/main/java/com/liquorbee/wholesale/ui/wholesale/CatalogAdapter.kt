@@ -56,6 +56,24 @@ class CatalogAdapter(
     // actually caps against.
     private fun availableQty(item: SubCustomerCatalogItemDto): Int = (item.qtyOnHand - item.pendingSaleQty).coerceAtLeast(0)
 
+    // Shared by the catalog row's tap-to-open pad and the View Cart dialog's tap-to-edit row, so
+    // both enforce the same cap consistently. 0-available items stay orderable (backorder) unless
+    // the cashier explicitly turns this cap on - a cap of exactly 0 would otherwise silently block
+    // ordering an out-of-stock/fully-committed item, which is not what "limit" should mean here.
+    fun capFor(item: SubCustomerCatalogItemDto): Int? {
+        val available = availableQty(item)
+        return if (limitQtyOnHand && available > 0) available else null
+    }
+
+    // Used by the View Cart dialog's tap-to-edit row - sets (or clears, at 0) a specific item's
+    // quantity directly, same effect as the catalog row's number pad but callable from anywhere
+    // the item/quantity is already known.
+    fun setQuantity(itemCode: String, qty: Int) {
+        if (qty > 0) quantities[itemCode] = qty else quantities.remove(itemCode)
+        val index = items.indexOfFirst { it.itemCode == itemCode }
+        if (index >= 0) notifyItemChanged(index)
+    }
+
     fun cartLines(): List<Pair<SubCustomerCatalogItemDto, Int>> =
         items.mapNotNull { item -> quantities[item.itemCode]?.takeIf { it > 0 }?.let { item to it } }
 
@@ -127,11 +145,7 @@ class CatalogAdapter(
 
         val openPad = android.view.View.OnClickListener {
             val itemName = item.itemName ?: item.itemCode ?: "this item"
-            // 0-available items stay orderable (backorder) unless the cashier explicitly turns
-            // this cap on - a cap of exactly 0 would otherwise silently block ordering an
-            // out-of-stock/fully-committed item, which is not what "limit" should mean here.
-            val cap = if (limitQtyOnHand && available > 0) available else null
-            NumberPadDialog.show(b.root.context, itemName, quantities[item.itemCode] ?: 0, cap) { newQty ->
+            NumberPadDialog.show(b.root.context, itemName, quantities[item.itemCode] ?: 0, capFor(item)) { newQty ->
                 val code = item.itemCode ?: return@show
                 if (newQty > 0) quantities[code] = newQty else quantities.remove(code)
                 refreshQtyDisplay()
