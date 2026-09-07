@@ -12,6 +12,7 @@ import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.PatchManagementOrderDto
 import com.liquorbee.wholesale.network.SessionManager
 import com.liquorbee.wholesale.network.WholesaleOpenOrderDto
+import com.liquorbee.wholesale.printing.PrintHelper
 import com.liquorbee.wholesale.ui.wholesale.orderStatusLabel
 import kotlinx.coroutines.launch
 
@@ -39,6 +40,7 @@ class OrderDetailActivity : AppCompatActivity() {
         binding.recyclerLines.layoutManager = LinearLayoutManager(this)
         binding.buttonSave.setOnClickListener { saveChanges() }
         binding.buttonDelete.setOnClickListener { confirmDelete() }
+        binding.buttonPrint.setOnClickListener { printReceipt() }
 
         load()
     }
@@ -109,6 +111,18 @@ class OrderDetailActivity : AppCompatActivity() {
                 finish()
             } catch (e: Exception) {
                 showMessage("Failed to delete this order: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    private fun printReceipt() {
+        val o = order ?: return
+        lifecycleScope.launch {
+            val storeName = try {
+                ApiClient.buildAuthenticatedApi(session).getAccountSettings().storeName
+            } catch (e: Exception) { null }
+            PrintHelper.printOrder(this@OrderDetailActivity, o, storeName) { success, message ->
+                showMessage(message, isError = !success)
             }
         }
     }

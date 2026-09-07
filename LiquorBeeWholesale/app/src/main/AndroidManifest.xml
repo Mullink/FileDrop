@@ -7,6 +7,10 @@
          anything - requested from HomeActivity right after login. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- USB-OTG for the receipt printer (SNBC BTP-R180II / Lyntek ACE H2) - not required so the
+         app still installs/runs on hardware with no USB host support or no printer attached. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
     <application
         android:name=".WholesaleApp"
         android:allowBackup="false"

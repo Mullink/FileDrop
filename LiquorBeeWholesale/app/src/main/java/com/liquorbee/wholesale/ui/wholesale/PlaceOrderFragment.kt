@@ -169,7 +169,7 @@ class PlaceOrderFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                if (request != null) {
+                val response = if (request != null) {
                     api.createDraftOrder(CreateSubCustomerDraftOrderDto(
                         requestId = request.requestId,
                         subCustomerEmail = request.toEmailAddress,
@@ -182,10 +182,32 @@ class PlaceOrderFragment : Fragment() {
                 submitting = false
                 showMessage("Order submitted.", isError = false)
                 showCelebration()
+                printJustPlacedOrder(response.orderId)
                 loadCatalog()
             } catch (e: Exception) {
                 submitting = false
                 showMessage("Failed to submit order: ${e.message}", isError = true)
+            }
+        }
+    }
+
+    // Auto-prints to the register's receipt printer right after a successful submit - the native
+    // equivalent of the web's "preview & print invoice" step after placing an order, just without
+    // a screen preview since there's a physical printer sitting right there instead.
+    private fun printJustPlacedOrder(orderId: String?) {
+        if (orderId.isNullOrBlank()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val api = ApiClient.buildAuthenticatedApi(session)
+                val detail = api.getManagementOrderDetail(orderId)
+                val storeName = try { api.getAccountSettings().storeName } catch (e: Exception) { null }
+                com.liquorbee.wholesale.printing.PrintHelper.printOrder(requireContext(), detail, storeName) { success, message ->
+                    if (!success) showMessage(message, isError = true)
+                }
+            } catch (e: Exception) {
+                // Order already submitted successfully - a print failure shouldn't look like the
+                // order itself failed. Silent here; the receipt can still be printed later from
+                // View Orders if needed.
             }
         }
     }

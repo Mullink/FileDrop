@@ -130,11 +130,20 @@
                 android:layout_marginTop="10dp"
                 android:visibility="gone" />
 
+            <Button
+                android:id="@+id/buttonPrint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="🖨  Print Receipt"
+                android:background="@drawable/bg_button_dark"
+                android:textColor="@color/white" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="14dp">
+                android:layout_marginTop="8dp">
                 <Button
                     android:id="@+id/buttonSave"
                     android:layout_width="0dp"

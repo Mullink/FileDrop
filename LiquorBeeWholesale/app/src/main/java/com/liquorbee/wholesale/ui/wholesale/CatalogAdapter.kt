@@ -57,11 +57,16 @@ class CatalogAdapter(
         b.textItemCode.text = item.itemCode ?: "—"
         b.textItemName.text = item.itemName ?: "(unnamed item)"
         b.textQtyOnHand.text = item.qtyOnHand.toString()
+        b.textQtyOnHand.setTextColor(qtyOnHandColor(item.qtyOnHand))
         b.textPrice.text = "$%.2f".format(price)
+        b.textPrice.setTextColor(COLOR_GOOD)
 
         holder.watcher?.let { b.editQty.removeTextChangedListener(it) }
         val qty = quantities[item.itemCode] ?: 0
-        b.editQty.setText(qty.toString())
+        // Empty, not "0" - typing into a field that already shows "0" risks becoming "10" instead
+        // of "1" if the old digit isn't cleared/selected first. The hint still shows "0" as a
+        // placeholder so the field doesn't look broken/blank.
+        b.editQty.setText(if (qty > 0) qty.toString() else "")
         b.textLineTotal.text = if (qty > 0) "$%.2f".format(price * qty) else ""
 
         val watcher = object : TextWatcher {
@@ -77,5 +82,19 @@ class CatalogAdapter(
         }
         b.editQty.addTextChangedListener(watcher)
         holder.watcher = watcher
+    }
+
+    // 0 = out of stock (red), 1-4 = running low (orange), 5+ = plenty (green) - a quick glance at
+    // the column should be enough to tell staff whether an order is safe to fulfill.
+    private fun qtyOnHandColor(qty: Int): Int = when {
+        qty <= 0 -> COLOR_BAD
+        qty < 5 -> COLOR_WARN
+        else -> COLOR_GOOD
+    }
+
+    companion object {
+        private const val COLOR_GOOD = 0xFF2E6B4F.toInt()
+        private const val COLOR_WARN = 0xFFB9812E.toInt()
+        private const val COLOR_BAD = 0xFFC62828.toInt()
     }
 }

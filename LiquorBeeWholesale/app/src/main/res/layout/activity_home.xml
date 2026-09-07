@@ -103,8 +103,8 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🐝"
-                    android:textSize="48sp" />
+                    android:text="🧾"
+                    android:textSize="56sp" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -112,13 +112,8 @@
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="@color/white"
-                    android:gravity="center" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Requests, links, orders, and catalog"
-                    android:textColor="@color/white"
-                    android:layout_marginTop="4dp" />
+                    android:gravity="center"
+                    android:layout_marginTop="8dp" />
             </LinearLayout>
 
             <!-- Open-orders count, once wired - orange when &gt; 0, green at 0, matching the
