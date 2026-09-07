@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.liquorbee.wholesale.capture.ZebraScannerController
 import com.liquorbee.wholesale.databinding.FragmentPlaceOrderBinding
 import com.liquorbee.wholesale.network.ApiClient
 import com.liquorbee.wholesale.network.CreateGeneralOrderDto
@@ -55,6 +56,7 @@ class PlaceOrderFragment : Fragment() {
     private var submitting = false
     private var searchJob: Job? = null
     private var editSession: EditOrderPrefill.Session? = null
+    private var scannerController: ZebraScannerController? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaceOrderBinding.inflate(inflater, container, false)
@@ -83,7 +85,46 @@ class PlaceOrderFragment : Fragment() {
         // happen unless a cashier explicitly opts in.
         binding.checkboxInStockOnly.setOnCheckedChangeListener { _, _ -> applyFilter(binding.editSearch.text?.toString().orEmpty()) }
         binding.checkboxLimitQtyOnHand.setOnCheckedChangeListener { _, isChecked -> adapter?.setLimitQtyOnHand(isChecked) }
+        binding.checkboxScanMode.setOnCheckedChangeListener { _, isChecked -> setScanMode(isChecked) }
         loadAccounts()
+    }
+
+    // Zebra DS4608-SR, USB SNAPI mode (see ZebraScannerController) - each scan adds 1 unit to that
+    // item's cart quantity, matched by UPC first (a barcode's natural identity) then item code.
+    private fun setScanMode(enabled: Boolean) {
+        if (enabled) {
+            scannerController = ZebraScannerController(requireContext()) { barcode -> onBarcodeScanned(barcode) }
+            showScanStatus("Scan mode on - ready to scan.", isError = false)
+        } else {
+            scannerController?.close()
+            scannerController = null
+            binding.textScanStatus.visibility = View.GONE
+        }
+    }
+
+    private fun onBarcodeScanned(barcode: String) {
+        val a = adapter ?: return
+        val match = allItems.firstOrNull { it.upc?.trim().equals(barcode.trim(), ignoreCase = true) }
+            ?: allItems.firstOrNull { it.itemCode?.trim().equals(barcode.trim(), ignoreCase = true) }
+        if (match == null) {
+            showScanStatus("No catalog item found for barcode \"$barcode\".", isError = true)
+            return
+        }
+        val result = a.incrementQuantity(match)
+        updateCartSummary()
+        val name = match.itemName ?: match.itemCode ?: "item"
+        if (result.wasCapped) {
+            showScanStatus("$name: already at max available (${result.newQty}) - Limit Qty On Hand is on.", isError = true)
+        } else {
+            showScanStatus("$name → qty ${result.newQty}", isError = false)
+        }
+    }
+
+    private fun showScanStatus(text: String, isError: Boolean) {
+        val b = _binding ?: return
+        b.textScanStatus.visibility = View.VISIBLE
+        b.textScanStatus.text = text
+        b.textScanStatus.setTextColor(if (isError) 0xFFC62828.toInt() else 0xFF2E7D32.toInt())
     }
 
     // Defaults to General Customer (Retail) - index 0 - and loads its catalog immediately, so
@@ -415,6 +456,8 @@ class PlaceOrderFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        scannerController?.close()
+        scannerController = null
         _binding = null
     }
 }

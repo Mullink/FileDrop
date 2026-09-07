@@ -71,6 +71,23 @@ class CatalogAdapter(
     fun cartTotal(): Double = cartLines().sumOf { (item, qty) -> priceFor(item) * qty }
     fun cartCount(): Int = cartLines().sumOf { it.second }
 
+    data class ScanIncrementResult(val newQty: Int, val wasCapped: Boolean)
+
+    // Scan Mode (Zebra DS4608-SR): each scan adds 1 unit rather than opening the number pad, so a
+    // cashier can build a quantity by scanning the same item repeatedly. Respects the same
+    // Limit Qty On Hand cap as manual entry.
+    fun incrementQuantity(item: SubCustomerCatalogItemDto): ScanIncrementResult {
+        val code = item.itemCode ?: return ScanIncrementResult(0, false)
+        val current = quantities[code] ?: 0
+        val cap = if (limitQtyOnHand) availableQty(item) else Int.MAX_VALUE
+        val desired = current + 1
+        val newQty = desired.coerceAtMost(maxOf(cap, current))
+        quantities[code] = newQty
+        val index = items.indexOfFirst { it.itemCode == code }
+        if (index >= 0) notifyItemChanged(index)
+        return ScanIncrementResult(newQty, wasCapped = newQty < desired)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemCatalogRowBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         binding.editQty.showSoftInputOnFocus = false

@@ -13,8 +13,8 @@ android {
         targetSdk = 33
         // Bump both on every build that gets pushed to the GitHub FileDrop repo - versionCode is
         // what UpdateChecker compares against version.txt there to detect an out-of-date install.
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
     }
 
     buildTypes {
@@ -67,6 +67,11 @@ dependencies {
     // dbo.Settings) - plain ImageView doesn't animate GIFs, Glide does out of the box.
     implementation("com.github.bumptech.glide:glide:4.16.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // Zebra's official, MIT-licensed "Scanner SDK for Android" (com.zebra.scannercontrol) - same
+    // AAR already used by LiquorBeeInvoiceScannerAndroid's ZebraScannerController for this exact
+    // DS4608-SR hardware in USB SNAPI mode (not keyboard-wedge).
+    implementation(files("libs/barcode_scanner_library_v2.6.29.0-release.aar"))
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
