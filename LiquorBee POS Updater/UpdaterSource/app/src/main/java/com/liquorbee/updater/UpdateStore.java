@@ -15,6 +15,23 @@ public final class UpdateStore {
     public void setDailyOpening(boolean enabled) { prefs.edit().putBoolean("daily_opening", enabled).apply(); }
     public long dailyShownAt() { return prefs.getLong("daily_shown_at", 0); }
     public long dailyAttemptAt() { return prefs.getLong("daily_attempt_at", 0); }
+    public int dailyHour() { return prefs.getInt("daily_hour", 10); }
+    public int dailyMinute() { return prefs.getInt("daily_minute", 30); }
+    public void setDailyTime(int hour, int minute) {
+        java.time.LocalTime.of(hour, minute);
+        prefs.edit().putInt("daily_hour", hour).putInt("daily_minute", minute).apply();
+    }
+    public long nextScheduledAt() { return prefs.getLong("next_scheduled_at", 0); }
+    public void setNextScheduledAt(long at) { prefs.edit().putLong("next_scheduled_at", at).apply(); }
+    public long scheduledCheckAt() { return prefs.getLong("scheduled_check_at", 0); }
+    public boolean claimScheduledCheck(long expected, long now) {
+        synchronized (UpdateScheduler.class) {
+            if (!monitoringEnabled() || expected <= 0 || expected != nextScheduledAt() || expected > now
+                    || DailySchedule.sameDay(now, scheduledCheckAt(), DailySchedule.CENTRAL)
+                    || scheduledCheckAt() > now) return false;
+            return prefs.edit().putLong("scheduled_check_at", now).putLong("next_scheduled_at", 0).commit();
+        }
+    }
 
     public String beginDailyAttempt(long now) {
         synchronized (DailyPrompts.class) {

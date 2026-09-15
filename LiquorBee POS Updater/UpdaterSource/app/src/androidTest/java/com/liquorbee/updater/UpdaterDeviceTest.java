@@ -4,7 +4,7 @@ import android.app.Notification;
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.app.NotificationManager;
-import android.app.job.JobInfo;
+import android.app.AlarmManager;
 import android.app.job.JobScheduler;
 import android.content.Context;
 import android.content.Intent;
@@ -52,6 +52,7 @@ public class UpdaterDeviceTest {
     }
 
     @After public void clean() {
+        context.stopService(new Intent(context, ScheduledCheckService.class));
         notifications.cancelAll();
         context.getSharedPreferences("liquorbee_updater", Context.MODE_PRIVATE).edit().clear().commit();
         UpdateScheduler.reconcile(context);
@@ -125,17 +126,59 @@ public class UpdaterDeviceTest {
         assertEquals(0, store.notifiedCode());
     }
 
-    @Test public void schedulesSinglePersistedHourlyNetworkJob() {
+    @Test public void schedulesDailyAlarmAndRemovesLegacyHourlyJob() {
+        assertTrue("Allow Alarms & reminders before this suite", UpdateScheduler.exactAllowed(context));
         assertTrue(UpdateScheduler.reconcile(context));
+        long first = store.nextScheduledAt();
         assertTrue(UpdateScheduler.reconcile(context));
         JobScheduler scheduler = context.getSystemService(JobScheduler.class);
-        assertEquals(1, scheduler.getAllPendingJobs().size());
-        JobInfo job = scheduler.getPendingJob(UpdateScheduler.JOB_ID);
-        assertNotNull(job);
-        assertTrue(job.isPersisted());
-        assertTrue(job.isPeriodic());
-        assertEquals(3600000L, job.getIntervalMillis());
-        assertNotNull(job.getRequiredNetwork());
+        assertNull(scheduler.getPendingJob(UpdateScheduler.JOB_ID));
+        assertEquals(first, store.nextScheduledAt());
+        assertEquals(10, store.dailyHour());
+        assertEquals(30, store.dailyMinute());
+        store.setDailyTime(14, 45);
+        assertTrue(UpdateScheduler.reconcile(context));
+        UpdateStore recreated = new UpdateStore(context);
+        assertEquals(14, recreated.dailyHour());
+        assertEquals(45, recreated.dailyMinute());
+        assertEquals(DailySchedule.nextRun(System.currentTimeMillis(), 14, 45, DailySchedule.CENTRAL, 0),
+                recreated.nextScheduledAt());
+        store.setMonitoring(false);
+        UpdateScheduler.reconcile(context);
+        assertEquals(0, store.nextScheduledAt());
+    }
+
+    @Test public void staleEarlyAndDuplicateAlarmDeliveriesCannotRepeatTodaysCheck() {
+        long now = System.currentTimeMillis();
+        store.setNextScheduledAt(now + 1000);
+        assertFalse(store.claimScheduledCheck(now + 1000, now));
+        assertFalse(store.claimScheduledCheck(now - 1000, now));
+        store.setNextScheduledAt(now);
+        assertTrue(store.claimScheduledCheck(now, now));
+        assertEquals(now, new UpdateStore(context).scheduledCheckAt());
+        store.setNextScheduledAt(now + 2000);
+        assertFalse(new UpdateStore(context).claimScheduledCheck(now + 2000, now + 2000));
+    }
+
+    @Test public void actualExactAlarmChecksHttpsInBackgroundAndSchedulesTomorrow() throws Exception {
+        assertTrue(UpdateScheduler.exactAllowed(context));
+        store.markNotificationExplained();
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(MainActivity.class.getName(), null, false);
+        long when = System.currentTimeMillis() + 3000;
+        store.setNextScheduledAt(when);
+        context.getSystemService(AlarmManager.class).setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+                when, UpdateScheduler.alarmIntent(context, when));
+        try {
+            for (int i = 0; i < 600 && (store.lastCheck() == null || store.lastCheck().checkedAt < when); i++) Thread.sleep(100);
+            assertTrue("Alarm service claimed the scheduled check", store.scheduledCheckAt() >= when);
+            assertNotNull("Alarm service completed the HTTPS check", store.lastCheck());
+            assertFalse(store.lastCheck().error, store.lastCheck().failed());
+            assertEquals(installed, store.lastCheck().published.code);
+            assertTrue("Next daily alarm scheduled", store.nextScheduledAt() > when);
+            assertFalse(DailySchedule.sameDay(when, store.nextScheduledAt(), DailySchedule.CENTRAL));
+            assertNull("Current POS does not open the updater", instrumentation.waitForMonitorWithTimeout(monitor, 500));
+        } finally { instrumentation.removeMonitor(monitor); }
     }
 
     @Test public void fetchesRealHttpsVersionFile() {

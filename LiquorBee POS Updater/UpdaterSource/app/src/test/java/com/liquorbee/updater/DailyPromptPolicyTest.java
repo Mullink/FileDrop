@@ -12,16 +12,16 @@ public class DailyPromptPolicyTest {
 
     @Test public void firstNewBuildOpensImmediately() { assertTrue(due(20260911, 0, 0)); }
 
-    @Test public void samePendingBuildReturnsAfterTwentyFourHours() {
-        assertFalse(due(20260911, NOW - DailyPromptPolicy.DAY_MS + 1, 0));
-        assertTrue(due(20260911, NOW - DailyPromptPolicy.DAY_MS, 0));
+    @Test public void samePendingBuildReturnsOnNextCentralCalendarDay() {
+        assertFalse(due(20260911, NOW - 3600000, 0));
+        assertTrue(due(20260911, NOW - 86400000, 0));
     }
 
     @Test public void newerBuildDoesNotBypassDailyLimit() {
         assertFalse(due(20260912, NOW - 3600000, 0));
     }
 
-    @Test public void laterPostponesAllAutomaticOpeningsForTwentyFourHours() {
+    @Test public void laterDismissesAllAutomaticOpeningsForToday() {
         assertFalse(due(20260911, NOW, 0));
         assertFalse(due(20260912, NOW, 0));
     }
@@ -46,5 +46,11 @@ public class DailyPromptPolicyTest {
     @Test public void clockMovingBackwardDoesNotCauseRepeatedPrompts() {
         assertFalse(due(20260911, NOW + 3600000, 0));
         assertFalse(due(20260911, 0, NOW + 3600000));
+    }
+
+    @Test public void springDstStillAllowsNextDaysReminderAfterTwentyThreeHours() {
+        long yesterday = java.time.Instant.parse("2026-03-07T16:30:00Z").toEpochMilli();
+        long today = java.time.Instant.parse("2026-03-08T15:30:00Z").toEpochMilli();
+        assertTrue(DailyPromptPolicy.shouldOpen(true, true, true, 1, 2, today, yesterday, yesterday));
     }
 }

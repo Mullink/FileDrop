@@ -36,9 +36,9 @@ public final class DailyPrompts {
         try {
             context.startActivity(intent);
             // A background launch can be silently blocked by Android/OEM policy.
-            // Only MainActivity confirming its resume consumes the 24-hour allowance.
+            // Only MainActivity confirming its resume consumes today's allowance.
         } catch (SecurityException | ActivityNotFoundException ignored) {
-            // The per-build notification remains available; a later job can retry.
+            // The per-build notification remains available if opening is blocked.
         }
     }
 
@@ -48,10 +48,4 @@ public final class DailyPrompts {
         intent.removeExtra(EXTRA_TOKEN);
     }
 
-    public static synchronized void recordReview(Context context, ReleaseCheck check) {
-        InstalledPos installed = InstalledPos.read(context);
-        if (installed.installed && check != null && !check.failed() && check.published.code > installed.code) {
-            new UpdateStore(context).deferDailyOpening(System.currentTimeMillis());
-        }
-    }
 }

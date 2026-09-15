@@ -2,6 +2,7 @@ package com.liquorbee.updater;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.TimePickerDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -21,6 +22,11 @@ import android.widget.Toast;
 
 import java.text.DateFormat;
 import java.util.Date;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -34,6 +40,7 @@ public final class MainActivity extends Activity {
     private TextView scheduleText;
     private TextView dailyText;
     private Button dailyPermissionButton;
+    private Button dailyTimeButton, alarmPermissionButton;
     private Button checkButton, downloadButton, laterButton, notificationButton;
     private ProgressBar progress;
     private SharedPreferences preferences;
@@ -62,6 +69,14 @@ public final class MainActivity extends Activity {
         dailyText = findViewById(R.id.daily_description);
         dailyPermissionButton = findViewById(R.id.daily_permission_button);
         dailyPermissionButton.setOnClickListener(v -> enableDailyOpening());
+        dailyTimeButton = findViewById(R.id.daily_time_button);
+        dailyTimeButton.setOnClickListener(v -> new TimePickerDialog(this, (picker, hour, minute) -> {
+            store.setDailyTime(hour, minute);
+            scheduleOk = UpdateScheduler.reconcile(this);
+            render();
+        }, store.dailyHour(), store.dailyMinute(), false).show());
+        alarmPermissionButton = findViewById(R.id.alarm_permission_button);
+        alarmPermissionButton.setOnClickListener(v -> enableScheduledChecks());
         Switch dailySwitch = findViewById(R.id.daily_switch);
         dailySwitch.setChecked(store.dailyOpeningEnabled());
         dailySwitch.setOnCheckedChangeListener((button, enabled) -> {
@@ -103,6 +118,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         if (store != null) {
+            scheduleOk = UpdateScheduler.reconcile(this);
             DailyPrompts.confirmOpened(this, getIntent());
             render();
             checkNow();
@@ -128,7 +144,6 @@ public final class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
                 checking = false;
-                if (hasWindowFocus()) DailyPrompts.recordReview(this, result);
                 render();
             });
         });
@@ -180,8 +195,15 @@ public final class MainActivity extends Activity {
         notificationText.setText(UpdateNotifications.enabled(this)
                 ? R.string.notifications_on : R.string.notifications_off);
         notificationButton.setVisibility(UpdateNotifications.enabled(this) ? View.GONE : View.VISIBLE);
-        scheduleText.setText(!scheduleOk ? R.string.schedule_failed
-                : store.monitoringEnabled() ? R.string.schedule_enabled : R.string.schedule_paused);
+        dailyTimeButton.setText(getString(R.string.daily_time_format, LocalTime.of(store.dailyHour(), store.dailyMinute())
+                .format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))));
+        boolean exactAllowed = UpdateScheduler.exactAllowed(this);
+        scheduleText.setText(!store.monitoringEnabled() ? getString(R.string.schedule_paused)
+                : !exactAllowed ? getString(R.string.alarm_permission_needed)
+                : !scheduleOk || store.nextScheduledAt() == 0 ? getString(R.string.schedule_failed)
+                : getString(R.string.schedule_enabled, DateTimeFormatter.ofPattern("EEE, MMM d 'at' h:mm a z", Locale.US)
+                        .withZone(ZoneId.of(DailySchedule.CENTRAL)).format(Instant.ofEpochMilli(store.nextScheduledAt()))));
+        alarmPermissionButton.setVisibility(store.monitoringEnabled() && !exactAllowed ? View.VISIBLE : View.GONE);
         boolean dailyEnabled = store.monitoringEnabled() && store.dailyOpeningEnabled();
         boolean allowed = DailyPrompts.launchAllowed(this);
         dailyText.setText(!dailyEnabled ? R.string.daily_paused
@@ -195,6 +217,16 @@ public final class MainActivity extends Activity {
                     Uri.parse("package:" + getPackageName())));
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.daily_settings_unavailable, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void enableScheduledChecks() {
+        if (Build.VERSION.SDK_INT < 31) return;
+        try {
+            startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.alarm_settings_unavailable, Toast.LENGTH_LONG).show();
         }
     }
 

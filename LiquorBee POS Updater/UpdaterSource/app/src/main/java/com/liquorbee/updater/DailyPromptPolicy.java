@@ -1,15 +1,14 @@
 package com.liquorbee.updater;
 
-/** A rolling 24-hour limit, shared across builds and retained after reboot. */
+/** At most one automatic review per Chicago calendar day, including DST changes. */
 public final class DailyPromptPolicy {
-    public static final long DAY_MS = 24L * 60L * 60L * 1000L;
     public static final long ATTEMPT_COOLDOWN_MS = 15L * 60L * 1000L;
     private DailyPromptPolicy() { }
 
     public static boolean shouldOpen(boolean monitoring, boolean automatic, boolean installed,
             long installedCode, long publishedCode, long now, long lastShown, long lastAttempt) {
         return monitoring && automatic && installed && publishedCode > installedCode
-                && elapsed(now, lastShown, DAY_MS)
+                && (lastShown == 0 || (now >= lastShown && !DailySchedule.sameDay(now, lastShown, DailySchedule.CENTRAL)))
                 && elapsed(now, lastAttempt, ATTEMPT_COOLDOWN_MS);
     }
 
