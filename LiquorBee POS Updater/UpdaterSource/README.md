@@ -56,6 +56,10 @@ The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. Its package is `co
 
 The `release` build is intentionally unsigned until a private signing configuration is supplied by the release operator. No Quantic private signing key is needed to build this separate updater.
 
+### Publish each release
+
+Always overwrite `LiquorBee-Updater.apk` in the GitHub updater folder and local deliverables. Do not retain versioned APK filenames. Keep increasing Android's internal `versionCode`, sign with the same private updater key, and refresh `version.txt`, `SHA256SUMS.txt`, and `UpdaterSource.zip` with each release.
+
 ## Verification
 
 The 12 unit tests cover numeric parsing, invalid/offline version responses, the single lightweight request, first-release notification, remembered dismissal, permissions, paused monitoring, missing POS, and numeric comparisons. Run them with the build command above.
