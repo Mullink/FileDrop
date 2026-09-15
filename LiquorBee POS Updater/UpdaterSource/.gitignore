@@ -1,0 +1,10 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+*.jks
+*.keystore
+*.p12
+*.dpapi
+private-signing/
+keystore.properties

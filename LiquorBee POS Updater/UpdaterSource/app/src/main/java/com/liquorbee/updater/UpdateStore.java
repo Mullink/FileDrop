@@ -1,0 +1,40 @@
+package com.liquorbee.updater;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+public final class UpdateStore {
+    private final SharedPreferences prefs;
+
+    public UpdateStore(Context context) {
+        prefs = context.getSharedPreferences("liquorbee_updater", Context.MODE_PRIVATE);
+    }
+
+    public boolean monitoringEnabled() { return prefs.getBoolean("monitoring", true); }
+    public void setMonitoring(boolean enabled) { prefs.edit().putBoolean("monitoring", enabled).apply(); }
+    public boolean notificationExplained() { return prefs.getBoolean("notification_explained", false); }
+    public void markNotificationExplained() { prefs.edit().putBoolean("notification_explained", true).apply(); }
+    public long notifiedCode() { return prefs.getLong("notified_code", 0); }
+    public void markNotified(long code) {
+        synchronized (UpdateNotifications.class) {
+            // A stale review screen must not undo a newer background notification.
+            prefs.edit().putLong("notified_code", Math.max(code, notifiedCode())).apply();
+        }
+    }
+
+    public void save(ReleaseCheck check) {
+        prefs.edit().putLong("checked_at", check.checkedAt)
+                .putLong("published_code", check.published == null ? 0 : check.published.code)
+                .putString("published_label", check.published == null ? "" : check.published.label)
+                .putString("check_error", check.error).apply();
+    }
+
+    public ReleaseCheck lastCheck() {
+        long checked = prefs.getLong("checked_at", 0);
+        if (checked == 0) return null;
+        long code = prefs.getLong("published_code", 0);
+        PublishedVersion version = code > 0
+                ? new PublishedVersion(code, prefs.getString("published_label", "Build " + code)) : null;
+        return new ReleaseCheck(version, prefs.getString("check_error", ""), checked);
+    }
+}

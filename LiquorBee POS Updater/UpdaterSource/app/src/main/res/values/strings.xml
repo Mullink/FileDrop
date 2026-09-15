@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiquorBee Updater</string>
+    <string name="hero_title">LiquorBee\nUpdater</string>
+    <string name="hero_subtitle">Keep your POS ready for the next sale.</string>
+    <string name="pos_heading">LiquorBee POS · iMin</string>
+    <string name="installed_label">INSTALLED VERSION</string>
+    <string name="published_label">LATEST PUBLISHED BUILD</string>
+    <string name="installed_format">%1$s · Build %2$d</string>
+    <string name="not_installed">Not installed</string>
+    <string name="not_available">—</string>
+    <string name="not_checked">No checks yet</string>
+    <string name="last_checked_format">Last checked: %1$s</string>
+    <string name="checking">Checking…</string>
+    <string name="checking_message">Checking for a newer LiquorBee POS build.</string>
+    <string name="ready_to_check">Ready to check</string>
+    <string name="ready_message">Check for the latest available POS build.</string>
+    <string name="not_installed_message">LiquorBee POS was not found on this device. You can download the iMin app below.</string>
+    <string name="unable_to_check">Unable to check</string>
+    <string name="out_of_date">Out-of-date</string>
+    <string name="up_to_date">Up-to-date</string>
+    <string name="update_message">A newer build is available. Finish any active sale, then download and install the update when you are ready.</string>
+    <string name="current_message">Your installed build is current with the published version.</string>
+    <string name="check_now">Check now</string>
+    <string name="download_update">Download update</string>
+    <string name="download_pos">Download LiquorBee POS</string>
+    <string name="later">Later</string>
+    <string name="later_saved">You can download this update here anytime. We will notify you again for a newer build.</string>
+    <string name="background_title">Background checks</string>
+    <string name="background_switch">Check for updates automatically</string>
+    <string name="schedule_enabled">Checks about once an hour, even when this screen is closed, and resumes after a restart. Android may delay checks to save power.</string>
+    <string name="schedule_paused">Automatic checks are paused. You can still use Check now.</string>
+    <string name="schedule_failed">Android could not schedule background checks. Try turning automatic checks off and on again.</string>
+    <string name="force_stop_note">If you force-stop the updater in Android settings, open it again to resume checks.</string>
+    <string name="notifications_on">Notifications are on. Tap an update alert to open this app.</string>
+    <string name="notifications_off">Notifications are off. Enable them to hear about new POS builds while the updater is closed.</string>
+    <string name="enable_notifications">Enable notifications</string>
+    <string name="open_notification_settings">Open Android settings, select LiquorBee Updater, then enable notifications.</string>
+    <string name="download_note">Downloads open in your browser. Android will guide you through installation. The updater checks the installed version again when you return.</string>
+    <string name="release_source">Release information</string>
+    <string name="release_description">Latest build: LiquorBee on GitHub\nDownload: LiquorBee POS portal · iMin</string>
+    <string name="view_version_file">View published version</string>
+    <string name="no_browser">No browser is available to open the download. Install or enable a browser and try again.</string>
+    <string name="footer">LiquorBee Updater · 1.0.0</string>
+</resources>
