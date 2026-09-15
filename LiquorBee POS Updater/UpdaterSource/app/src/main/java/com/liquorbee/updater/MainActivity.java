@@ -2,6 +2,7 @@ package com.liquorbee.updater;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -38,9 +39,11 @@ public final class MainActivity extends Activity {
     private boolean scheduleOk = true;
     private TextView status, message, installedText, publishedText, checkedText, notificationText;
     private TextView scheduleText;
+    private TextView scheduledResultText;
     private TextView dailyText;
     private Button dailyPermissionButton;
     private Button dailyTimeButton, alarmPermissionButton;
+    private AlertDialog setupDialog;
     private Button checkButton, downloadButton, laterButton, notificationButton;
     private ProgressBar progress;
     private SharedPreferences preferences;
@@ -61,6 +64,7 @@ public final class MainActivity extends Activity {
         checkedText = findViewById(R.id.last_checked);
         notificationText = findViewById(R.id.notification_description);
         scheduleText = findViewById(R.id.schedule_description);
+        scheduledResultText = findViewById(R.id.scheduled_result);
         checkButton = findViewById(R.id.check_button);
         downloadButton = findViewById(R.id.download_button);
         laterButton = findViewById(R.id.later_button);
@@ -109,6 +113,55 @@ public final class MainActivity extends Activity {
         preferences.registerOnSharedPreferenceChangeListener(preferenceListener);
         render();
 
+    }
+
+    @Override protected void onPostResume() {
+        super.onPostResume();
+        if (store == null || isFinishing()) return;
+        if (store.setupStep() > 0) { continueReminderSetup(); return; }
+        boolean needsOpening = store.dailyOpeningEnabled() && !DailyPrompts.launchAllowed(this);
+        boolean needsAlarm = !UpdateScheduler.exactAllowed(this);
+        if (store.monitoringEnabled() && !store.setupExplained() && (needsOpening || needsAlarm)) {
+            if (setupDialog != null && setupDialog.isShowing()) return;
+            String explanation = getString(R.string.setup_intro)
+                    + (needsOpening ? "\n\n" + getString(R.string.setup_opening) : "")
+                    + (needsAlarm ? "\n\n" + getString(R.string.setup_alarm) : "");
+            setupDialog = new AlertDialog.Builder(this)
+                    .setTitle(R.string.setup_title).setMessage(explanation)
+                    .setPositiveButton(R.string.setup_continue, (dialog, which) -> {
+                        store.markSetupExplained();
+                        store.setSetupStep(1);
+                        continueReminderSetup();
+                    })
+                    .setNegativeButton(R.string.setup_later, (dialog, which) -> {
+                        store.markSetupExplained();
+                        requestNotificationSetup();
+                    })
+                    .setCancelable(false).show();
+            return;
+        }
+        requestNotificationSetup();
+    }
+
+    private void continueReminderSetup() {
+        // Record the next step before opening Android settings; resume after returning.
+        // Each screen is offered once, including when the operator chooses not to grant it.
+        if (store.setupStep() == 1) {
+            store.setSetupStep(2);
+            if (store.monitoringEnabled() && store.dailyOpeningEnabled()
+                    && !DailyPrompts.launchAllowed(this) && enableDailyOpening()) return;
+        }
+        if (store.setupStep() == 2) {
+            store.setSetupStep(3);
+            if (store.monitoringEnabled() && !UpdateScheduler.exactAllowed(this) && enableScheduledChecks()) return;
+        }
+        store.setSetupStep(0);
+        scheduleOk = UpdateScheduler.reconcile(this);
+        render();
+        requestNotificationSetup();
+    }
+
+    private void requestNotificationSetup() {
         if (Build.VERSION.SDK_INT >= 33 && !store.notificationExplained()) {
             store.markNotificationExplained();
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
@@ -119,7 +172,7 @@ public final class MainActivity extends Activity {
         super.onResume();
         if (store != null) {
             scheduleOk = UpdateScheduler.reconcile(this);
-            DailyPrompts.confirmOpened(this, getIntent());
+            if (hasWindowFocus()) DailyPrompts.confirmOpened(this, getIntent());
             render();
             checkNow();
         }
@@ -128,8 +181,13 @@ public final class MainActivity extends Activity {
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        DailyPrompts.confirmOpened(this, intent);
+        if (hasWindowFocus()) DailyPrompts.confirmOpened(this, intent);
         checkNow();
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && store != null) DailyPrompts.confirmOpened(this, getIntent());
     }
 
     private void checkNow() {
@@ -204,6 +262,18 @@ public final class MainActivity extends Activity {
                 : getString(R.string.schedule_enabled, DateTimeFormatter.ofPattern("EEE, MMM d 'at' h:mm a z", Locale.US)
                         .withZone(ZoneId.of(DailySchedule.CENTRAL)).format(Instant.ofEpochMilli(store.nextScheduledAt()))));
         alarmPermissionButton.setVisibility(store.monitoringEnabled() && !exactAllowed ? View.VISIBLE : View.GONE);
+        if (store.scheduledResultAt() == 0) {
+            scheduledResultText.setText(store.scheduledCheckAt() == 0 ? getString(R.string.no_scheduled_result)
+                    : getString(R.string.legacy_scheduled_result, DateTimeFormatter.ofPattern("EEE, MMM d 'at' h:mm:ss a z", Locale.US)
+                            .withZone(ZoneId.of(DailySchedule.CENTRAL)).format(Instant.ofEpochMilli(store.scheduledCheckAt()))));
+        } else {
+            String time = DateTimeFormatter.ofPattern("EEE, MMM d 'at' h:mm:ss a z", Locale.US)
+                    .withZone(ZoneId.of(DailySchedule.CENTRAL)).format(Instant.ofEpochMilli(store.scheduledResultAt()));
+            scheduledResultText.setText(getString(R.string.scheduled_result_format, time,
+                    getString(store.scheduledResult().message)));
+            if (store.scheduledPublishedCode() > 0) scheduledResultText.append("\n" + getString(
+                    R.string.scheduled_builds_format, store.scheduledInstalledCode(), store.scheduledPublishedCode()));
+        }
         boolean dailyEnabled = store.monitoringEnabled() && store.dailyOpeningEnabled();
         boolean allowed = DailyPrompts.launchAllowed(this);
         dailyText.setText(!dailyEnabled ? R.string.daily_paused
@@ -211,22 +281,26 @@ public final class MainActivity extends Activity {
         dailyPermissionButton.setVisibility(dailyEnabled && !allowed ? View.VISIBLE : View.GONE);
     }
 
-    private void enableDailyOpening() {
+    private boolean enableDailyOpening() {
         try {
             startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName())));
+            return true;
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.daily_settings_unavailable, Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
-    private void enableScheduledChecks() {
-        if (Build.VERSION.SDK_INT < 31) return;
+    private boolean enableScheduledChecks() {
+        if (Build.VERSION.SDK_INT < 31) return false;
         try {
             startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                     Uri.parse("package:" + getPackageName())));
+            return true;
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, R.string.alarm_settings_unavailable, Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
@@ -285,6 +359,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (setupDialog != null) setupDialog.dismiss();
         if (preferences != null) preferences.unregisterOnSharedPreferenceChangeListener(preferenceListener);
         executor.shutdownNow();
         super.onDestroy();

@@ -18,17 +18,25 @@ public final class DailyPrompts {
         return Build.VERSION.SDK_INT < 29 || Settings.canDrawOverlays(context);
     }
 
-    public static synchronized void consider(Context context, ReleaseCheck check) {
-        if (check == null || check.failed() || !launchAllowed(context)) return;
+    public static synchronized OpeningResult consider(Context context, ReleaseCheck check) {
+        if (check == null || check.failed()) return OpeningResult.CHECK_FAILED;
+        InstalledPos installed = InstalledPos.read(context);
+        if (!installed.installed) return OpeningResult.POS_MISSING;
+        if (installed.code >= check.published.code) return OpeningResult.CURRENT;
+        UpdateStore store = new UpdateStore(context);
+        if (!store.monitoringEnabled()) return OpeningResult.PAUSED;
+        if (!store.dailyOpeningEnabled()) return OpeningResult.OPENING_DISABLED;
+        if (!launchAllowed(context)) return OpeningResult.PERMISSION_REQUIRED;
         PowerManager power = context.getSystemService(PowerManager.class);
         KeyguardManager keyguard = context.getSystemService(KeyguardManager.class);
-        if (power == null || !power.isInteractive() || keyguard == null || keyguard.isKeyguardLocked()) return;
-        InstalledPos installed = InstalledPos.read(context);
-        UpdateStore store = new UpdateStore(context);
+        if (power == null || !power.isInteractive()) return OpeningResult.SCREEN_ASLEEP;
+        if (keyguard == null || keyguard.isKeyguardLocked()) return OpeningResult.SCREEN_LOCKED;
         long now = System.currentTimeMillis();
+        if (store.dailyShownAt() > now || DailySchedule.sameDay(now, store.dailyShownAt(), DailySchedule.CENTRAL))
+            return OpeningResult.DISMISSED_TODAY;
         if (!DailyPromptPolicy.shouldOpen(store.monitoringEnabled(), store.dailyOpeningEnabled(),
                 installed.installed, installed.code, check.published.code, now,
-                store.dailyShownAt(), store.dailyAttemptAt())) return;
+                store.dailyShownAt(), store.dailyAttemptAt())) return OpeningResult.ATTEMPT_WAIT;
         String token = store.beginDailyAttempt(now);
         Intent intent = new Intent(context, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -37,8 +45,10 @@ public final class DailyPrompts {
             context.startActivity(intent);
             // A background launch can be silently blocked by Android/OEM policy.
             // Only MainActivity confirming its resume consumes today's allowance.
+            return OpeningResult.OPEN_REQUESTED;
         } catch (SecurityException | ActivityNotFoundException ignored) {
             // The per-build notification remains available if opening is blocked.
+            return OpeningResult.OPEN_REJECTED;
         }
     }
 

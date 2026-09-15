@@ -15,9 +15,11 @@ This release replaces the old hourly job and rolling 24-hour popup with a daily 
 ## One-time setup
 
 1. Install `LiquorBee-Updater.apk` and open it once. Keep **Check for updates daily** and **Open updater when an update is available** enabled.
-2. On Android 12+, tap **Allow scheduled checks** and allow **Alarms & reminders**. Return to the updater. Without this permission, the daily alarm is not scheduled; Check now still works.
-3. On Android 10+, tap **Allow automatic opening**, select LiquorBee Updater if Android displays an app list, and allow **Display over other apps**. Return to the updater. Notification permission alone does not permit opening over the POS.
-4. Allow notifications as a fallback, and confirm the displayed next check time.
+2. When **Enable daily update reminders** appears, tap **Set up now**. The prompt also appears for existing installations upgrading to this release when a required permission is missing.
+3. Allow **Display over other apps** for LiquorBee Updater; select the app first if Android displays a list. Return to the updater to continue to **Alarms & reminders** on Android 12+, allow it, then return again. Already-granted permissions are skipped. Android requires the operator to grant these permissions in its settings.
+4. Allow notifications as a fallback, and confirm the displayed next check time. Notification permission alone does not permit opening over the POS.
+
+Setup starts on first launch, including the installer's Open button. **Not now** skips the guided setup; the **Allow automatic opening** and **Allow scheduled checks** buttons remain available in the app. Missing alarm permission prevents scheduling; Check now still works.
 
 The register must be awake and unlocked for the review screen to appear. A sleeping or locked register can still receive a scheduled version check and update notification; the app does not unlock it. OEM/kiosk policies can block background opening even with permission. An active sale may be interrupted, so choose a suitable time for the store.
 
@@ -25,6 +27,15 @@ The daily alarm is restored after reboot, app replacement, clock changes, and al
 
 A brief foreground-service notification is shown only while the scheduled check runs. The service stops after the request and has a 90-second timeout. No continuously running service, accessibility service, overlay window, full-screen notification, silent installer or POS transaction access is used.
 
+## Troubleshoot a missed opening
+
+Under Daily update check, **Last scheduled check** keeps the outcome of the background alarm. Opening the updater or tapping Check now does not overwrite it. It shows the scheduled check time in Chicago time, the installed/published builds when available, and whether POS was current, the request failed, a permission was missing, the register was asleep/locked, opening was disabled/dismissed, or Android rejected the opening.
+
+An opening request is not counted as a successful display. The updater must receive window focus with its private request token before the result says the screen opened. If no confirmation arrives, the result says opening was requested but not confirmed. This can indicate a device/kiosk restriction; it is not proof of the exact policy that blocked it. Late confirmations from an older alarm cannot consume a new day's reminder.
+
+If the prior app version recorded a scheduled check, the app can show that time but cannot reconstruct its missing outcome. No newly recorded scheduled check means the alarm has not reached the claimed-check stage. Check that Next daily check is the expected date/time, daily checks are enabled, Alarms & reminders is allowed, and the app has not been force-stopped. The foreground check also records when Android rejects its service start.
+
+For a controlled test, save a time two or three minutes ahead, verify today's date, and use Home to return to POS with the register awake/unlocked. Later deliberately dismisses today's opening. If the screen stays closed, reopen the updater and read the separate Last scheduled check result. Its evidence is kept locally; no diagnostic data is uploaded.
 ## POS release contract
 
 - Installed package: `com.liquorbee.liquorbeepos`.

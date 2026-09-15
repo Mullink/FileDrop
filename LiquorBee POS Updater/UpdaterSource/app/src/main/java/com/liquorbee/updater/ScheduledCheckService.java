@@ -24,11 +24,12 @@ public final class ScheduledCheckService extends Service {
     private Future<?> work;
     private PowerManager.WakeLock wakeLock;
     private volatile boolean stopped;
+    private long activeRun;
 
     @Override public void onCreate() {
         super.onCreate();
         NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager == null) { stopSelf(); return; }
+        if (manager == null) { stopped = true; new UpdateStore(this).recordServiceFailure(); stopSelf(); return; }
         String channel = "scheduled_check";
         manager.createNotificationChannel(new NotificationChannel(channel,
                 getString(R.string.scheduled_channel), NotificationManager.IMPORTANCE_LOW));
@@ -38,8 +39,15 @@ public final class ScheduledCheckService extends Service {
                 .setSmallIcon(R.drawable.ic_update).setContentTitle(getString(R.string.scheduled_check_title))
                 .setContentText(getString(R.string.checking_message)).setContentIntent(review)
                 .setOngoing(true).setOnlyAlertOnce(true).build();
-        if (Build.VERSION.SDK_INT >= 34) startForeground(48105, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
-        else startForeground(48105, notification);
+        try {
+            if (Build.VERSION.SDK_INT >= 34) startForeground(48105, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
+            else startForeground(48105, notification);
+        } catch (SecurityException | IllegalStateException e) {
+            stopped = true;
+            new UpdateStore(this).recordServiceFailure();
+            stopSelf();
+            return;
+        }
         PowerManager power = getSystemService(PowerManager.class);
         if (power != null) {
             wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LiquorBeeUpdater:dailyCheck");
@@ -49,11 +57,13 @@ public final class ScheduledCheckService extends Service {
             stopped = true;
             new UpdateStore(this).save(new ReleaseCheck(null,
                     "The scheduled check timed out. Check your connection and try Check now.", System.currentTimeMillis()));
+            new UpdateStore(this).recordScheduledResult(activeRun, OpeningResult.TIMED_OUT, 0, 0);
             stopSelf();
         }, 90000L);
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        if (stopped) { stopSelf(startId); return START_NOT_STICKY; }
         UpdateStore store = new UpdateStore(this);
         long revision = store.scheduleRevision();
         long expected = intent == null ? 0 : intent.getLongExtra(UpdateScheduler.EXTRA_SCHEDULED_AT, 0);
@@ -62,6 +72,7 @@ public final class ScheduledCheckService extends Service {
             return START_NOT_STICKY;
         }
         if (work != null) work.cancel(true);
+        activeRun = expected;
         UpdateScheduler.reconcile(this);
         work = executor.submit(() -> {
             try {
@@ -70,7 +81,10 @@ public final class ScheduledCheckService extends Service {
                         || revision != store.scheduleRevision()) return;
                 store.save(check);
                 UpdateNotifications.consider(this, check);
-                DailyPrompts.consider(this, check);
+                InstalledPos installed = InstalledPos.read(this);
+                OpeningResult result = DailyPrompts.consider(this, check);
+                store.recordScheduledResult(expected, result, installed.code,
+                        check.published == null ? 0 : check.published.code);
             } finally { stopSelf(startId); }
         });
         return START_NOT_STICKY;

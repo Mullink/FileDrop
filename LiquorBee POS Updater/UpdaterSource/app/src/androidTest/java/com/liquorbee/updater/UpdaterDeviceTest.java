@@ -194,6 +194,10 @@ public class UpdaterDeviceTest {
             assertNotNull("Alarm service completed the HTTPS check", store.lastCheck());
             assertFalse(store.lastCheck().error, store.lastCheck().failed());
             assertEquals(installed, store.lastCheck().published.code);
+            for (int i = 0; i < 50 && store.scheduledResult() == OpeningResult.CHECKING; i++) Thread.sleep(100);
+            assertEquals(OpeningResult.CURRENT, store.scheduledResult());
+            assertEquals(installed, store.scheduledInstalledCode());
+            assertEquals(installed, store.scheduledPublishedCode());
             assertTrue("Next daily alarm scheduled", store.nextScheduledAt() > when);
             assertFalse(DailySchedule.sameDay(when, store.nextScheduledAt(), DailySchedule.CENTRAL));
             assertNull("Current POS does not open the updater", instrumentation.waitForMonitorWithTimeout(monitor, 500));
@@ -296,11 +300,54 @@ public class UpdaterDeviceTest {
             Activity activity = instrumentation.waitForMonitorWithTimeout(monitor, 10000);
             assertNotNull("Automatic review launch succeeded", activity);
             instrumentation.waitForIdleSync();
+            for (int i = 0; i < 100 && store.dailyShownAt() == 0; i++) Thread.sleep(100);
             assertTrue(store.dailyShownAt() > 0);
             long firstAttempt = store.dailyAttemptAt();
             DailyPrompts.consider(context, release(installed + 2));
             assertEquals("Newer builds obey the same daily cap", firstAttempt, store.dailyAttemptAt());
             instrumentation.runOnMainSync(activity::finish);
         } finally { instrumentation.removeMonitor(monitor); }
+    }
+
+    @Test public void scheduledResultSurvivesManualChecksAndTimeChanges() {
+        long when = System.currentTimeMillis();
+        store.setNextScheduledAt(when);
+        assertTrue(store.claimScheduledCheck(when, when));
+        store.recordScheduledResult(when, OpeningResult.PERMISSION_REQUIRED, installed, installed + 1);
+        store.save(release(installed));
+        store.setDailyTime(16, 30);
+        UpdateStore recreated = new UpdateStore(context);
+        assertEquals(when, recreated.scheduledResultAt());
+        assertEquals(OpeningResult.PERMISSION_REQUIRED, recreated.scheduledResult());
+        assertEquals(installed + 1, recreated.scheduledPublishedCode());
+    }
+
+    @Test public void confirmationCannotBeOverwrittenByPendingLaunchResult() {
+        long when = System.currentTimeMillis();
+        store.setNextScheduledAt(when);
+        assertTrue(store.claimScheduledCheck(when, when));
+        String token = store.beginDailyAttempt(when);
+        assertTrue(store.confirmDailyOpened(token, when));
+        store.recordScheduledResult(when, OpeningResult.OPEN_REQUESTED, installed, installed + 1);
+        assertEquals(OpeningResult.OPENED, store.scheduledResult());
+        assertEquals(installed + 1, store.scheduledPublishedCode());
+        store.recordScheduledResult(when - 1, OpeningResult.CHECK_FAILED, 0, 0);
+        assertEquals(OpeningResult.OPENED, store.scheduledResult());
+        String obsolete = store.beginDailyAttempt(when + 1);
+        long tomorrow = when + 86400000L;
+        store.setNextScheduledAt(tomorrow);
+        assertTrue(store.claimScheduledCheck(tomorrow, tomorrow));
+        assertFalse("Late confirmation from an old alarm cannot consume the new day", store.confirmDailyOpened(obsolete, tomorrow));
+        assertEquals(OpeningResult.CHECKING, store.scheduledResult());
+    }
+
+    @Test public void openingResultExplainsCurrentFailedDisabledAndDismissedChecks() {
+        assertEquals(OpeningResult.CURRENT, DailyPrompts.consider(context, release(installed)));
+        assertEquals(OpeningResult.CHECK_FAILED, DailyPrompts.consider(context, new ReleaseCheck(null, "Offline", System.currentTimeMillis())));
+        store.setDailyOpening(false);
+        assertEquals(OpeningResult.OPENING_DISABLED, DailyPrompts.consider(context, release(installed + 1)));
+        store.setDailyOpening(true);
+        store.deferDailyOpening(System.currentTimeMillis());
+        assertEquals(OpeningResult.DISMISSED_TODAY, DailyPrompts.consider(context, release(installed + 1)));
     }
 }
