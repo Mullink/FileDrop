@@ -27,4 +27,5 @@ This folder's version.txt is updater build **4**. POS metadata remains **2026091
 
 Always overwrite **LiquorBee-Updater.apk**. Do not create versioned APK filenames. Increase Android's internal versionCode, keep the same private updater key, and refresh version.txt, SHA256SUMS.txt and both source copies. No keys or credentials belong in this folder.
 
-Clean compilation, both lint variants and 30 unit tests passed. Emulator activity-opening checks are still under investigation; see the [verification status](UpdaterSource/BUILD-STATUS.md). Physical iMin testing remains.
+Clean compilation, both lint variants and 30 unit tests passed. All 13 Android emulator cases passed across the initial run and a targeted rerun of two opening checks; see the [verification status](UpdaterSource/BUILD-STATUS.md) for the initial failures and test limits. Physical iMin testing remains.
+

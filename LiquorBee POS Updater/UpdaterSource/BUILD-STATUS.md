@@ -18,7 +18,7 @@
 - All 30 JVM unit tests passed. Coverage includes version parsing/comparison, failures, notification state, daily eligibility, schedule edits, duplicate-day prevention, winter/summer offsets, spring's 23-hour day, autumn's 25-hour day, missing/repeated DST times and invalid hours.
 - Debug/release lint: zero errors; two cosmetic icon warnings (empty v26 folder and optional monochrome icon).
 - Signed release installed over 1.0.2 on Android 15 / API 35 x86_64 emulator. apksigner verification passed. Certificate SHA-256: b2b601fc07882e8aaa11849546b5fd625175ee5571bc0a297d039d7ee610d44c.
-- The first 13-test instrumentation run has two unresolved activity-opening assertions (automatic review and notification tap) in the slow emulator. They are not claimed as passing; investigation continues after check-in. The preceding 1.0.2 release passed its 11-test suite, which does not establish this release's new behavior.
+- The first 13-test instrumentation run passed 11 tests, including a real exact alarm starting the background HTTPS check, correct current-version behavior, next-day scheduling, saved time configuration, duplicate/early/stale alarm rejection, notifications, package lookup and Later/download behavior. Automatic review and notification-tap opening initially failed their assertions in the emulator. Both then passed a targeted rerun (2/2) after reissuing wake/unlock/home commands, without any APK or test changes. All 13 cases have passed across those runs; a single uninterrupted 13/13 run is not claimed. The initial failures and successful rerun are retained in the local device-test report.
 
 ## Device acceptance
 
@@ -29,3 +29,4 @@ The scheduled check depends on network access. Android/device restrictions can d
 The original Quantic-signed POS remains package com.liquorbee.liquorbeepos, version 1.2.1/build 20260910, SHA-256 ef380e68df7c0f2bc22cc57e5ce482c1fb426791552cbd01fa110f3891722770. Checks read only its small version file. No POS changes, re-signing, full-APK background downloads or silent installs.
 
 Signing keys/passwords remain private and excluded from source archives/GitHub. No off-device signing-key backup was made.
+
