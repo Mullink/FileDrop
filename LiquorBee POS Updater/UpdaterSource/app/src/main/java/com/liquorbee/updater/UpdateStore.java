@@ -19,14 +19,28 @@ public final class UpdateStore {
     public int dailyMinute() { return prefs.getInt("daily_minute", 30); }
     public void setDailyTime(int hour, int minute) {
         java.time.LocalTime.of(hour, minute);
-        prefs.edit().putInt("daily_hour", hour).putInt("daily_minute", minute).apply();
+        synchronized (UpdateScheduler.class) {
+            // Saving a time is an explicit request for its next occurrence, including today.
+            // Do not carry an earlier check, Later action or blocked attempt into the new schedule.
+            prefs.edit().putInt("daily_hour", hour).putInt("daily_minute", minute)
+                    .putLong("schedule_revision", scheduleRevision() + 1)
+                    .putBoolean("schedule_needs_refresh", true)
+                    .putLong("scheduled_check_at", 0).putLong("daily_shown_at", 0)
+                    .putLong("daily_attempt_at", 0).remove("daily_pending_token").apply();
+        }
     }
+    public long scheduleRevision() { return prefs.getLong("schedule_revision", 0); }
+    public boolean scheduleNeedsRefresh() { return prefs.getBoolean("schedule_needs_refresh", false); }
     public long nextScheduledAt() { return prefs.getLong("next_scheduled_at", 0); }
-    public void setNextScheduledAt(long at) { prefs.edit().putLong("next_scheduled_at", at).apply(); }
+    public void setNextScheduledAt(long at) {
+        SharedPreferences.Editor edit = prefs.edit().putLong("next_scheduled_at", at);
+        if (at > 0) edit.putBoolean("schedule_needs_refresh", false);
+        edit.apply();
+    }
     public long scheduledCheckAt() { return prefs.getLong("scheduled_check_at", 0); }
     public boolean claimScheduledCheck(long expected, long now) {
         synchronized (UpdateScheduler.class) {
-            if (!monitoringEnabled() || expected <= 0 || expected != nextScheduledAt() || expected > now
+            if (!monitoringEnabled() || scheduleNeedsRefresh() || expected <= 0 || expected != nextScheduledAt() || expected > now
                     || DailySchedule.sameDay(now, scheduledCheckAt(), DailySchedule.CENTRAL)
                     || scheduledCheckAt() > now) return false;
             return prefs.edit().putLong("scheduled_check_at", now).putLong("next_scheduled_at", 0).commit();

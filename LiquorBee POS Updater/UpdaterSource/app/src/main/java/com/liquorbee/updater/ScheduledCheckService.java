@@ -54,22 +54,24 @@ public final class ScheduledCheckService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (work != null) return START_NOT_STICKY;
         UpdateStore store = new UpdateStore(this);
+        long revision = store.scheduleRevision();
         long expected = intent == null ? 0 : intent.getLongExtra(UpdateScheduler.EXTRA_SCHEDULED_AT, 0);
         if (!store.claimScheduledCheck(expected, System.currentTimeMillis())) {
-            stopSelf();
+            if (work == null) stopSelf(startId);
             return START_NOT_STICKY;
         }
+        if (work != null) work.cancel(true);
         UpdateScheduler.reconcile(this);
         work = executor.submit(() -> {
             try {
                 ReleaseCheck check = new ReleaseChecker(new HttpsTextFetcher()).check();
-                if (stopped || Thread.currentThread().isInterrupted() || !store.monitoringEnabled()) return;
+                if (stopped || Thread.currentThread().isInterrupted() || !store.monitoringEnabled()
+                        || revision != store.scheduleRevision()) return;
                 store.save(check);
                 UpdateNotifications.consider(this, check);
                 DailyPrompts.consider(this, check);
-            } finally { stopSelf(); }
+            } finally { stopSelf(startId); }
         });
         return START_NOT_STICKY;
     }

@@ -8,7 +8,7 @@ The default is **10:30 AM Central Time (America/Chicago)**, following daylight s
 
 At that time, the app fetches the small POS version file, reads the installed POS build, and opens the updater only when the installed POS is out of date and automatic opening is enabled and permitted. Current, missing or unverifiable POS versions do not cause automatic opening. A failed check displays an error when reviewed; it never claims the POS is current.
 
-Checks run once per Chicago calendar day. Changing the time after today's scheduled check starts the new schedule tomorrow. The next check is displayed in the app. Manual **Check now** and opening the updater still perform a check. **Later** closes the review and dismisses automatic opening for today; tomorrow's scheduled check stays in place. Newer builds cannot cause another automatic opening on the same day.
+Automatic repeats run once per Chicago calendar day. Saving a time explicitly rearms its next occurrence, including today even if an earlier check ran or was dismissed. Saving the current minute checks shortly; a time already past that minute schedules tomorrow. The next check is displayed in the app. Manual **Check now** and opening the updater still perform a check. **Later** closes the review and dismisses automatic opening for today; tomorrow's scheduled check stays in place. Newer builds alone cannot cause another automatic opening on the same day. An explicit time save clears the earlier dismissal for the newly chosen schedule.
 
 This release replaces the old hourly job and rolling 24-hour popup with a daily scheduled alarm. No app-opening monitor or Usage access permission is used.
 
@@ -21,7 +21,7 @@ This release replaces the old hourly job and rolling 24-hour popup with a daily 
 
 The register must be awake and unlocked for the review screen to appear. A sleeping or locked register can still receive a scheduled version check and update notification; the app does not unlock it. OEM/kiosk policies can block background opening even with permission. An active sale may be interrupted, so choose a suitable time for the store.
 
-The daily alarm is restored after reboot, app replacement, clock changes, and alarm-permission grants. If the register is off at the scheduled time, the next future daily time is used after restart. Force-stop suspends the updater and cancels alarms until it is explicitly opened again. Android may delay work under device restrictions; precise display timing also depends on network access.
+The daily alarm is restored after reboot, app replacement, clock changes, and alarm-permission grants. A pending check delayed by up to 15 minutes can still run on recovery. Older missed alarms use the next future daily time. Force-stop suspends the updater and cancels alarms until it is explicitly opened again. Android may delay work under device restrictions; precise display timing also depends on network access.
 
 A brief foreground-service notification is shown only while the scheduled check runs. The service stops after the request and has a 90-second timeout. No continuously running service, accessibility service, overlay window, full-screen notification, silent installer or POS transaction access is used.
 

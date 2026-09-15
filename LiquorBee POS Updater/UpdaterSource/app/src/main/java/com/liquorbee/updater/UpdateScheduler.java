@@ -35,8 +35,8 @@ public final class UpdateScheduler {
             store.setNextScheduledAt(0);
             return !store.monitoringEnabled();
         }
-        long when = DailySchedule.nextRun(System.currentTimeMillis(), store.dailyHour(), store.dailyMinute(),
-                DailySchedule.CENTRAL, store.scheduledCheckAt());
+        long when = DailySchedule.resolveNextRun(System.currentTimeMillis(), store.dailyHour(), store.dailyMinute(),
+                DailySchedule.CENTRAL, store.scheduledCheckAt(), store.nextScheduledAt(), store.scheduleNeedsRefresh());
         try {
             alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, when, alarmIntent(context, when));
             store.setNextScheduledAt(when);

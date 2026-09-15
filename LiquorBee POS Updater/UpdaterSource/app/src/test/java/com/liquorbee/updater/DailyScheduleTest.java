@@ -20,7 +20,7 @@ public class DailyScheduleTest {
         assertEquals(at("2026-09-16T15:30:00Z"), next("2026-09-15T15:30:00Z", 10, 30, 0));
         assertEquals(at("2026-09-16T15:30:00Z"), next("2026-09-15T17:00:00Z", 10, 30, 0));
     }
-    @Test public void changingTimeAfterTodaysRunCannotScheduleTwice() {
+    @Test public void automaticReschedulingAfterTodaysRunCannotScheduleTwice() {
         assertEquals(at("2026-09-16T19:15:00Z"), next("2026-09-15T16:00:00Z", 14, 15, at("2026-09-15T15:30:00Z")));
     }
     @Test public void nextSpringDayIsTwentyThreeHoursLater() {
@@ -40,5 +40,27 @@ public class DailyScheduleTest {
     }
     @Test(expected = java.time.DateTimeException.class) public void invalidHourIsRejected() {
         next("2026-09-15T12:00:00Z", 24, 0, 0);
+    }
+
+    @Test public void savingFourOhOneBeforeTheTimeRunsTodayDespiteEarlierCheck() {
+        assertEquals(at("2026-09-15T21:01:00Z"), DailySchedule.resolveNextRun(at("2026-09-15T21:00:00Z"),
+                16, 1, DailySchedule.CENTRAL, at("2026-09-15T15:30:00Z"), at("2026-09-16T15:30:00Z"), true));
+    }
+    @Test public void savingCurrentMinuteDoesNotSkipToTomorrow() {
+        long now = at("2026-09-15T21:01:20Z");
+        assertEquals(now + 1000, DailySchedule.resolveNextRun(now, 16, 1, DailySchedule.CENTRAL, 0, 0, true));
+    }
+    @Test public void savingPastMinuteUsesTomorrow() {
+        assertEquals(at("2026-09-16T21:01:00Z"), DailySchedule.resolveNextRun(at("2026-09-15T21:02:00Z"),
+                16, 1, DailySchedule.CENTRAL, 0, 0, true));
+    }
+    @Test public void returningToUpdaterWhileAlarmIsBeingDeliveredPreservesToday() {
+        long due = at("2026-09-15T21:01:00Z");
+        assertEquals(due, DailySchedule.resolveNextRun(due + 5000, 16, 1, DailySchedule.CENTRAL, 0, due, false));
+    }
+    @Test public void longExpiredAlarmUsesNextScheduledTime() {
+        long due = at("2026-09-15T21:01:00Z");
+        assertEquals(at("2026-09-16T21:01:00Z"), DailySchedule.resolveNextRun(due + 3600000,
+                16, 1, DailySchedule.CENTRAL, 0, due, false));
     }
 }

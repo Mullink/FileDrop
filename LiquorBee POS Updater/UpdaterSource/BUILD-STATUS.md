@@ -1,32 +1,33 @@
 # Verification status
 
-2026-09-15: LiquorBee Updater 1.0.3 / versionCode 4 / com.liquorbee.updater.
+2026-09-15: LiquorBee Updater 1.0.4 / versionCode 5 / com.liquorbee.updater.
 
-## Current release
+## Same-day schedule correction
 
-- Stable distribution filename: LiquorBee-Updater.apk, overwritten each release.
-- Daily scheduled check defaults to 10:30 AM America/Chicago and follows daylight saving time. The time is configurable in the app; the next scheduled check is displayed.
-- Replaces the legacy hourly job and rolling 24-hour opening allowance. Scheduled checks and automatic reviews run at most once per Chicago calendar day. Editing the time after today's check applies tomorrow.
-- Checks the real POS metadata at the scheduled time and opens the review only for an installed, out-of-date POS when automatic opening is enabled, the register is awake/unlocked and Android permits opening. Current/missing/failed checks do not auto-open.
-- Alarms & reminders permission is required on Android 12+. Display over other apps is required for background opening on Android 10+. Setup buttons and explanations are in the app.
-- Restores the daily alarm after reboot, package replacement, clock/time-zone changes and alarm permission grants. The short foreground check stops after completion, with a 90-second timeout. No app-usage monitor or continuously running service.
-- Existing logo, navy branding, stable URLs, preferences and private signing identity retained. POS APK and public POS build metadata unchanged.
+Saving the daily time explicitly rearms its next occurrence. A future time runs today even if an earlier scheduled check already ran or an earlier review was dismissed. Saving within the selected minute checks shortly instead of skipping to tomorrow. Times already past that minute use tomorrow. Automatic repeats still run once per Chicago calendar day; explicit time changes are operator overrides.
 
-## Completed verification
+The new schedule clears the earlier check/dismissal/attempt state. Old launch tokens are invalidated, stale alarm deliveries cannot claim a newly edited schedule, and an old network result cannot launch a review after its schedule is replaced. A pending alarm delayed by up to 15 minutes is preserved when returning to the app, instead of being overwritten with tomorrow's alarm. Older missed alarms use the next future time.
 
-- Clean debug/release compilation, release assembly and instrumentation compilation passed with AGP 8.8.1, Gradle 8.10.2, SDK 35 and Android Studio JDK.
-- All 30 JVM unit tests passed. Coverage includes version parsing/comparison, failures, notification state, daily eligibility, schedule edits, duplicate-day prevention, winter/summer offsets, spring's 23-hour day, autumn's 25-hour day, missing/repeated DST times and invalid hours.
-- Debug/release lint: zero errors; two cosmetic icon warnings (empty v26 folder and optional monochrome icon).
-- Signed release installed over 1.0.2 on Android 15 / API 35 x86_64 emulator. apksigner verification passed. Certificate SHA-256: b2b601fc07882e8aaa11849546b5fd625175ee5571bc0a297d039d7ee610d44c.
-- The first 13-test instrumentation run passed 11 tests, including a real exact alarm starting the background HTTPS check, correct current-version behavior, next-day scheduling, saved time configuration, duplicate/early/stale alarm rejection, notifications, package lookup and Later/download behavior. Automatic review and notification-tap opening initially failed their assertions in the emulator. Both then passed a targeted rerun (2/2) after reissuing wake/unlock/home commands, without any APK or test changes. All 13 cases have passed across those runs; a single uninterrupted 13/13 run is not claimed. The initial failures and successful rerun are retained in the local device-test report.
+The default remains 10:30 AM America/Chicago, following daylight saving time. The chosen time and next check appear in the updater. Alarms & reminders is required on Android 12+; Display over other apps is required for automatic opening on Android 10+. The register must be awake and unlocked to show the review. Current, missing or failed POS checks never auto-open.
 
-## Device acceptance
+## Validation
 
-No physical iMin is connected. Verify the selected daily time, both Android setup permissions, actual out-of-date automatic opening, current/offline behavior, reboot, force-stop/relaunch and kiosk restrictions on the register. Confirm natural daily timing and a real POS download/install. Synthetic future builds are confined to tests, never public version.txt. An instrumentation run does not establish every OEM background policy.
+- Release compilation/assembly and both lint variants passed with AGP 8.8.1, Gradle 8.10.2, SDK 35 and Android Studio JDK.
+- All 35 JVM tests passed, including the reported 4:01 PM case after an earlier check, saving during the current minute, past-minute behavior, delivery-time reconciliation, delayed alarms, normal daily limits and both daylight saving transitions.
+- All 14 instrumentation tests passed in one run on the final signed release APK on Android 15 / API 35 x86_64 emulator (32.094 seconds, zero failures). Coverage includes rearming after today's check and dismissal, persistence of the new time, obsolete token rejection, original POS package lookup, live HTTPS metadata, actual exact-alarm background execution, next-day scheduling, automatic review opening, notification tap, notification suppression, Later and the original browser download intent.
+- Final release installed over the prior updater using the retained private signer. apksigner verification passed. Certificate SHA-256: b2b601fc07882e8aaa11849546b5fd625175ee5571bc0a297d039d7ee610d44c.
+- Lint: zero errors; two unchanged cosmetic icon warnings (empty v26 folder and optional monochrome icon).
 
-The scheduled check depends on network access. Android/device restrictions can delay or block it. The register must be awake and unlocked for a review screen; update notifications remain a fallback when allowed. If powered off at the scheduled time, the next future scheduled time is used after restart. Force-stop requires opening the updater again.
+## Register testing
 
-The original Quantic-signed POS remains package com.liquorbee.liquorbeepos, version 1.2.1/build 20260910, SHA-256 ef380e68df7c0f2bc22cc57e5ce482c1fb426791552cbd01fa110f3891722770. Checks read only its small version file. No POS changes, re-signing, full-APK background downloads or silent installs.
+Install the latest stable LiquorBee-Updater.apk, open it and save a time two or three minutes ahead. Confirm Next daily check shows today's date, then use Home to return to the POS. The updater opens only if the POS is out of date, automatic opening is enabled, required permissions are allowed and the register is awake/unlocked. Later deliberately dismisses automatic opening for today; saving another time rearms it.
+
+No physical iMin is connected. Verify the corrected schedule, actual outdated-POS opening, OEM/kiosk restrictions, restart, force-stop/relaunch and a real POS upgrade on the register. Emulator tests do not establish every device policy. Force-stop requires reopening the updater. The scheduled check requires network access and Android can delay or block execution.
+
+## Release integrity
+
+Stable filename LiquorBee-Updater.apk is overwritten, with internal versionCode increased. Logo, navy branding, default Central timezone and original POS download URL are retained. No app-usage monitor or continuously running service is used; the scheduled check's brief foreground service has a 90-second timeout.
+
+The Quantic-signed POS is unchanged: com.liquorbee.liquorbeepos, version 1.2.1/build 20260910, SHA-256 ef380e68df7c0f2bc22cc57e5ce482c1fb426791552cbd01fa110f3891722770. Only the small published POS version file is fetched during checks. Tests never modify POS data or public release metadata. No POS re-signing, periodic full-APK download or silent installation.
 
 Signing keys/passwords remain private and excluded from source archives/GitHub. No off-device signing-key backup was made.
-

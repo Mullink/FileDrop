@@ -36,7 +36,7 @@
     <string name="schedule_enabled">Next daily check: %1$s. Checks once a day, even when the updater is closed.</string>
     <string name="change_daily_time">Change daily check time</string>
     <string name="daily_time_format">Daily check: %1$s · Change</string>
-    <string name="daily_timezone">Central Time · Chicago. Automatically follows daylight saving time. If today’s check already ran, a new time starts tomorrow.</string>
+    <string name="daily_timezone">Central Time · Chicago. Automatically follows daylight saving time. Saving a time schedules its next occurrence, including today, then repeats daily. Saving the current minute checks shortly.</string>
     <string name="alarm_permission_button">Allow scheduled checks</string>
     <string name="alarm_permission_needed">Allow Alarms &amp; reminders for LiquorBee Updater to check at the time you choose, including when the app is closed.</string>
     <string name="alarm_settings_unavailable">This device does not offer Alarms &amp; reminders settings. You can still use Check now.</string>
@@ -54,5 +54,5 @@
     <string name="release_description">Latest build: LiquorBee on GitHub\nDownload: LiquorBee POS portal · iMin</string>
     <string name="view_version_file">View published version</string>
     <string name="no_browser">No browser is available to open the download. Install or enable a browser and try again.</string>
-    <string name="footer">LiquorBee Updater · 1.0.3</string>
+    <string name="footer">LiquorBee Updater · 1.0.4</string>
 </resources>

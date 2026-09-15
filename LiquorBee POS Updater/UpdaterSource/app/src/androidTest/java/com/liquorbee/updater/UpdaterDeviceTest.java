@@ -160,6 +160,25 @@ public class UpdaterDeviceTest {
         assertFalse(new UpdateStore(context).claimScheduledCheck(now + 2000, now + 2000));
     }
 
+    @Test public void savingTimeRearmsTodayAndClearsEarlierDismissal() {
+        long now = System.currentTimeMillis();
+        store.setNextScheduledAt(now);
+        assertTrue(store.claimScheduledCheck(now, now));
+        store.deferDailyOpening(now);
+        String oldToken = store.beginDailyAttempt(now);
+        java.time.ZonedDateTime chosen = java.time.Instant.ofEpochMilli(now).atZone(
+                java.time.ZoneId.of(DailySchedule.CENTRAL)).plusMinutes(5);
+        store.setDailyTime(chosen.getHour(), chosen.getMinute());
+        assertEquals(0, store.scheduledCheckAt());
+        assertEquals(0, store.dailyShownAt());
+        assertEquals(0, store.dailyAttemptAt());
+        assertFalse(store.confirmDailyOpened(oldToken, now));
+        assertFalse("Old delivery cannot claim a newly edited schedule", store.claimScheduledCheck(now, now));
+        assertTrue(UpdateScheduler.reconcile(context));
+        assertEquals(chosen.withSecond(0).withNano(0).toInstant().toEpochMilli(), new UpdateStore(context).nextScheduledAt());
+        assertEquals(1, store.scheduleRevision());
+    }
+
     @Test public void actualExactAlarmChecksHttpsInBackgroundAndSchedulesTomorrow() throws Exception {
         assertTrue(UpdateScheduler.exactAllowed(context));
         store.markNotificationExplained();
