@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LiquorBee Updater</string>
-    <string name="hero_title">LiquorBee\nUpdater</string>
     <string name="hero_subtitle">Keep your POS ready for the next sale.</string>
     <string name="pos_heading">LiquorBee POS · iMin</string>
     <string name="installed_label">INSTALLED VERSION</string>
@@ -41,5 +40,5 @@
     <string name="release_description">Latest build: LiquorBee on GitHub\nDownload: LiquorBee POS portal · iMin</string>
     <string name="view_version_file">View published version</string>
     <string name="no_browser">No browser is available to open the download. Install or enable a browser and try again.</string>
-    <string name="footer">LiquorBee Updater · 1.0.0</string>
+    <string name="footer">LiquorBee Updater · 1.0.1</string>
 </resources>

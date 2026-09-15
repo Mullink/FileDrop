@@ -1,8 +1,8 @@
 # Verification status
 
-Verified on 2026-09-15. Updater 1.0.0 / versionCode 1 / package com.liquorbee.updater.
+Verified on 2026-09-15. Updater 1.0.1 / versionCode 2 / package com.liquorbee.updater.
 
-## Passed
+## Earlier functional verification (1.0.0)
 
 - Debug and release compilation and APK assembly with Android SDK 35, AGP 8.8.1, Gradle 8.10.2, and Android Studio JDK.
 - All 12 JVM unit tests.
@@ -28,3 +28,7 @@ No physical iMin was connected. The owner will perform further device testing. N
 Checks are approximately hourly, not exact. Android may delay them for power, connectivity, or quotas. Open the updater once after installation. After reboot it resumes through a persisted job, subject to normal boot/user-unlock availability. Force-stop suspends execution until the app is explicitly reopened; reboot persistence does not bypass it.
 
 Private signing keys/passwords are retained outside the source and excluded from GitHub and source archives. The POS APK has never been modified or re-signed.
+
+## Branding update 1.0.1
+
+Uses the supplied logo for the adaptive launcher icon and header, with the shared Labels/Receiving/Wholesale navy palette. VersionCode is 2, signed with the same key. Release build, all 12 unit tests, and debug/release lint passed again. The nine instrumentation tests above passed on 1.0.0. Post-branding runtime/visual testing is pending because the existing emulator reported a System UI nonresponse during installation.
