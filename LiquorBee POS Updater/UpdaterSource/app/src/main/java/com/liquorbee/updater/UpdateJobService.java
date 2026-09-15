@@ -22,6 +22,7 @@ public final class UpdateJobService extends JobService {
             if (cancelled.get() || Thread.currentThread().isInterrupted()) return;
             new UpdateStore(this).save(check);
             UpdateNotifications.consider(this, check);
+            if (!cancelled.get()) DailyPrompts.consider(this, check);
             if (!cancelled.get()) jobFinished(params, check.failed());
         });
         return true;

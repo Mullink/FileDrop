@@ -1,34 +1,33 @@
 # Verification status
 
-Verified on 2026-09-15. Updater 1.0.1 / versionCode 2 / package com.liquorbee.updater.
+2026-09-15: LiquorBee Updater 1.0.2 / versionCode 3 / com.liquorbee.updater.
 
-## Earlier functional verification (1.0.0)
+## Current release
 
-- Debug and release compilation and APK assembly with Android SDK 35, AGP 8.8.1, Gradle 8.10.2, and Android Studio JDK.
-- All 12 JVM unit tests.
-- Debug and release lint: no issues found.
-- All nine Android instrumentation tests on Android 15 / API 35 x86_64 emulator: installed POS package/version, real HTTPS metadata request, notification once per build, newer-build alert while old notification remains, persistent Later/high-watermark state, failed-check behavior, paused monitoring, persisted hourly network job, notification tap opening review, review-screen Later button, and original APK browser intent.
-- UI reported Not installed before installing the original POS APK.
-- Original Quantic-signed POS 1.2.1 / versionCode 20260910 installed on the emulator without modification. Package lookup returned that version.
-- Downloaded the currently published POS APK once for release verification. Its SHA-256 exactly matches the supplied APK: ef380e68df7c0f2bc22cc57e5ce482c1fb426791552cbd01fa110f3891722770. Signature verification reports OU=Quantic.
-- Signed updater release installed and launched. A forced JobScheduler check completed successfully while its activity was in the background.
-- Persisted updater job was present after emulator reboot, before reopening the updater; a forced run subsequently worked. Reboot was slow and normal service availability was delayed.
-- Dedicated RSA-3072 updater signature verified with apksigner, and ZIP alignment verified. The release is not debuggable.
+- Stable distribution filename: LiquorBee-Updater.apk. Overwrite it for every release.
+- Supplied LiquorBee-Updater.png used unchanged for the launcher icon and header. Shared Labels/Receiving/Wholesale navy palette retained.
+- Added optional daily automatic review opening while a newer POS build remains available. Opens at most once every 24 hours, only while awake/unlocked and with Android's background-launch permission. Later closes the screen and defers opening for 24 hours.
+- Failed or silently blocked launch attempts do not consume the daily allowance. Confirmation requires the resumed activity to return a private request token. A 15-minute retry cooldown prevents rapid attempts.
 
-## Fixes during validation
+## Validation
 
-- New builds can alert even if an older build's notification remains visible.
-- A stale Later action cannot lower the remembered notification build.
-- Added backup-exclusion settings and removed layout/resource lint warnings.
+- Clean debug/release compilation and assembly passed with AGP 8.8.1, Gradle 8.10.2, SDK 35, Android Studio JDK.
+- All 20 JVM unit tests passed, including daily rate limiting across releases, Later, disabled modes, missing/current/invalid versions, blocked-attempt retries and backward clock changes.
+- Debug/release lint passed: zero errors, two cosmetic launcher warnings (obsolete empty v26 folder and no optional monochrome icon).
+- All 11 instrumentation tests passed on the signed release APK on Android 15 / API 35 x86_64 emulator. Tests covered original POS package/version detection, live HTTPS fetching, one notification per newer build, fresh-release alerting, persisted scheduling, Later, notification tap, original download intent, persisted attempt/confirmation state and automatic daily opening with the special permission granted. The second automatic attempt for an even newer build was suppressed by the same daily limit.
+- Release 1.0.2 installed over 1.0.1 with the same private signer. apksigner verification passed; certificate SHA-256: b2b601fc07882e8aaa11849546b5fd625175ee5571bc0a297d039d7ee610d44c.
+- Tests use synthetic future releases only inside the emulator test process. They never publish fictitious POS builds or modify/re-sign the POS APK.
 
-## Remaining acceptance tests
+## POS and earlier scheduling verification
 
-No physical iMin was connected. The owner will perform further device testing. Natural hourly timing, prolonged Doze/OEM battery behavior, swipe-away behavior, notification denial/channel blocking, large fonts/landscape, and an actual in-place POS upgrade remain to be verified. Force-stop/relaunch commands were exercised, but the emulator's reported waiting state did not establish a complete force-stop suppression test. The download-intent test intercepts the browser launch; it does not claim a full browser download-and-install test.
+The currently served Quantic-signed POS APK was independently downloaded once and matched the supplied original: package com.liquorbee.liquorbeepos, version 1.2.1, versionCode 20260910. SHA-256: ef380e68df7c0f2bc22cc57e5ce482c1fb426791552cbd01fa110f3891722770. The published LiquorBeePOS/version.txt was corrected to 20260910. Scheduled checks fetch only that small version file.
 
-Checks are approximately hourly, not exact. Android may delay them for power, connectivity, or quotas. Open the updater once after installation. After reboot it resumes through a persisted job, subject to normal boot/user-unlock availability. Force-stop suspends execution until the app is explicitly reopened; reboot persistence does not bypass it.
+Earlier release testing verified Not installed before POS installation, successful background job completion with the activity closed, and the persisted job present after reboot. Force-stop/relaunch commands were exercised, but a full force-stop suppression test remains.
 
-Private signing keys/passwords are retained outside the source and excluded from GitHub and source archives. The POS APK has never been modified or re-signed.
+## Remaining device acceptance
 
-## Branding update 1.0.1
+No physical iMin was connected. Verify the Display over other apps setup, OEM/kiosk background-launch behavior, screen-off/locked behavior, natural 24-hour timing, extended Doze, permission revocation/channel blocking, swipe-away, large fonts/landscape and an actual in-place POS upgrade on the iMin. Instrumentation launch tests do not establish every OEM background policy. The download test intercepts the browser intent; it does not claim a complete browser download/install flow.
 
-Uses the supplied logo for the adaptive launcher icon and header, with the shared Labels/Receiving/Wholesale navy palette. VersionCode is 2, signed with the same key. Release build, all 12 unit tests, and debug/release lint passed again. The nine instrumentation tests above passed on 1.0.0. Post-branding runtime/visual testing is pending because the existing emulator reported a System UI nonresponse during installation.
+Android can delay hourly work. Reboot persistence does not override force-stop: the operator must reopen a force-stopped updater. Automatic review may interrupt an active sale; the operator still chooses whether to install.
+
+Signing keys/passwords are retained privately and excluded from source archives and GitHub. No off-device key backup was made.

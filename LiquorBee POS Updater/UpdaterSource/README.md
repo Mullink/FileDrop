@@ -9,12 +9,12 @@ A separate Android app that checks for newer LiquorBee POS iMin builds. It does 
 - Checks on opening the updater and approximately hourly in the background with Android JobScheduler.
 - Background checks continue when the updater screen is closed or swiped away, and the job persists after reboot. Android/OEM battery restrictions can delay work. Force-stop suspends the app until the user launches it again.
 - Shows Up-to-date, Out-of-date, Unable to check, or Not installed. A failed request never reports a successful current-version check.
-- Posts a notification once for each newly discovered build; tapping it opens the updater. Later remembers that build across app restarts. Newer builds can generate a new alert.
+- Posts a notification once for each newly discovered build; tapping it opens the updater. Newer builds can generate a new alert. With automatic opening enabled and permitted, it also opens the review screen at most once every 24 hours while an update remains available. Later remembers the notified build, closes the screen, and postpones automatic opening for 24 hours.
 - Opens the [original Quantic-signed iMin APK](https://portal.liquorbee.com/download/liquorbeepos/imin.apk) in the browser. Android and the browser handle download/installation and any required install-source permission.
 - Rechecks the installed version on returning. Starting a download is never treated as a successful installation.
 - Supports Android 9 (API 28) or later. Android 13+ requires notification permission; denied notifications are explained in the app with an Enable notifications action.
 
-There is no portal HTML scraping, periodic APK download, always-running foreground service, overlay permission, automatic full-screen popup, silent installation, or POS transaction access. A notification may appear during a sale; the cashier chooses when to open it and update. This independent app cannot reliably know whether the POS has an active transaction.
+There is no portal HTML scraping, periodic APK download, always-running foreground service, silent installation, or POS transaction access. Automatic opening can interrupt a sale: this independent app cannot reliably know whether the POS has an active transaction. The cashier still chooses when to download and install.
 
 ## Version file contract
 
@@ -62,15 +62,17 @@ Always overwrite `LiquorBee-Updater.apk` in the GitHub updater folder and local 
 
 ## Verification
 
-The 12 unit tests cover numeric parsing, invalid/offline version responses, the single lightweight request, first-release notification, remembered dismissal, permissions, paused monitoring, missing POS, and numeric comparisons. Run them with the build command above.
+The 20 unit tests cover numeric parsing, invalid/offline version responses, the single lightweight request, first-release notification, remembered dismissal, permissions, paused monitoring, missing POS, and numeric comparisons. Run them with the build command above.
 
-Nine Android instrumentation tests cover actual package-version lookup, HTTPS fetching, persisted scheduling, notifications, a notification tap opening the review screen, Later, and the browser download intent. Synthetic future releases exist only in the tests; they never change the public version file. Run on a disposable Android 15 emulator with the original POS 1.2.1/build 20260910 installed:
+Eleven Android instrumentation tests cover actual package-version lookup, HTTPS fetching, persisted scheduling, notifications, a notification tap opening the review screen, Later, and the browser download intent. Synthetic future releases exist only in the tests; they never change the public version file. Run on a disposable Android 15 emulator with the original POS 1.2.1/build 20260910 installed:
 
 ```powershell
 .\gradlew.bat assembleDebug assembleDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell pm grant com.liquorbee.updater android.permission.POST_NOTIFICATIONS
+# Disposable test emulator only: enable Android's background-launch exemption.
+adb shell appops set com.liquorbee.updater SYSTEM_ALERT_WINDOW allow
 adb shell am instrument -w com.liquorbee.updater.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
@@ -81,10 +83,22 @@ On an iMin test device, verify:
 1. Current/newer/lower version responses and failure states. Use a test endpoint/build for simulated newer releases; do not publish fictitious builds in production version.txt.
 2. Notifications allowed/denied and channel disabled; tap opens the updater.
 3. Swipe away the updater, then verify a scheduled job still runs. Reboot and verify its persisted job. Force-stop, relaunch, and verify scheduling recovers.
-4. Later suppresses repeat alerts for that build but a later build alerts again.
+4. Later suppresses repeat notifications for that build, closes the screen, and postpones automatic opening for 24 hours. A later build can notify again but cannot bypass the automatic daily limit.
 5. Download the actual Quantic-signed APK, install over the existing POS, return to the updater, and confirm the installed build refreshes and the alert clears.
 6. Portrait/landscape and large font sizes, including the system bars on Android 15.
 
-Compilation, both lint variants, all 12 unit tests, and all nine instrumentation tests passed on 2026-09-15. Physical iMin acceptance testing remains. See BUILD-STATUS.md for the verification record and limits.
+Compilation, both lint variants, all 20 unit tests, and all 11 instrumentation tests passed on 2026-09-15. Physical iMin acceptance testing remains. See BUILD-STATUS.md for the verification record and limits.
 
 Android's [periodic jobs](https://developer.android.com/reference/android/app/job/JobInfo.Builder#setPeriodic(long)) are inexact and can be delayed by Doze, network availability, quotas, and OEM battery policies. Launch the updater at least once after installation. A [force-stopped app](https://developer.android.com/about/versions/15/behavior-changes-all#stopped-state) cannot keep checking; explicitly reopening it restores scheduling. Reboot persistence does not bypass force-stop.
+
+## Daily automatic opening (1.0.2)
+
+1. Install the latest `LiquorBee-Updater.apk`, open it, and keep automatic checks and **Open update screen once a day** enabled.
+2. On Android 10+, tap **Allow automatic opening**, select LiquorBee Updater if Android shows an app list, and enable **Display over other apps**. Return to the updater. Android 9 does not require this exemption.
+3. Allow notifications as a fallback. If the device does not offer the special permission or an OEM/kiosk policy still blocks opening, use the notification to open the review screen.
+
+The existing approximately hourly check opens the screen when a fresh successful check finds a newer installed-POS build, the terminal is awake and unlocked, and at least 24 hours have passed since the last displayed update review or Later action. The daily limit applies across all builds and survives restarts. It is a rolling 24-hour interval, not a fixed clock time. A network error, current installation, disabled monitoring, disabled automatic opening, missing permission, sleeping device, or lock screen prevents automatic launch.
+
+The app requests the documented SYSTEM_ALERT_WINDOW exemption only after the operator chooses the settings button. It does not draw an overlay, use accessibility services, or use full-screen notification privileges. Android can silently block background launches; the app records a successful opening only when its activity resumes with a matching private request token. A blocked request does not consume the daily allowance; a later check may retry after a 15-minute attempt cooldown. Manual review of a fresh update also starts the 24-hour delay.
+
+[Android background activity rules](https://developer.android.com/guide/components/activities/secure-bal). Force-stop and battery/scheduling restrictions still apply. This is a request to open when allowed, not a guarantee of exact daily timing.

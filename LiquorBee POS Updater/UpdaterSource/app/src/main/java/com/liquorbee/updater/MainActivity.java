@@ -32,6 +32,8 @@ public final class MainActivity extends Activity {
     private boolean scheduleOk = true;
     private TextView status, message, installedText, publishedText, checkedText, notificationText;
     private TextView scheduleText;
+    private TextView dailyText;
+    private Button dailyPermissionButton;
     private Button checkButton, downloadButton, laterButton, notificationButton;
     private ProgressBar progress;
     private SharedPreferences preferences;
@@ -57,6 +59,15 @@ public final class MainActivity extends Activity {
         laterButton = findViewById(R.id.later_button);
         notificationButton = findViewById(R.id.notification_button);
         progress = findViewById(R.id.progress);
+        dailyText = findViewById(R.id.daily_description);
+        dailyPermissionButton = findViewById(R.id.daily_permission_button);
+        dailyPermissionButton.setOnClickListener(v -> enableDailyOpening());
+        Switch dailySwitch = findViewById(R.id.daily_switch);
+        dailySwitch.setChecked(store.dailyOpeningEnabled());
+        dailySwitch.setOnCheckedChangeListener((button, enabled) -> {
+            store.setDailyOpening(enabled);
+            render();
+        });
 
         Switch backgroundSwitch = findViewById(R.id.background_switch);
         backgroundSwitch.setChecked(store.monitoringEnabled());
@@ -72,8 +83,10 @@ public final class MainActivity extends Activity {
         laterButton.setOnClickListener(v -> {
             ReleaseCheck last = store.lastCheck();
             if (last != null && last.published != null) store.markNotified(last.published.code);
+            store.deferDailyOpening(System.currentTimeMillis());
             UpdateNotifications.cancel(this);
             Toast.makeText(this, R.string.later_saved, Toast.LENGTH_LONG).show();
+            finish();
         });
         notificationButton.setOnClickListener(v -> enableNotifications());
         findViewById(R.id.source_button).setOnClickListener(v -> openUrl(UpdateConfig.GITHUB_VERSION_URL));
@@ -89,7 +102,18 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        if (store != null) { render(); checkNow(); }
+        if (store != null) {
+            DailyPrompts.confirmOpened(this, getIntent());
+            render();
+            checkNow();
+        }
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        DailyPrompts.confirmOpened(this, intent);
+        checkNow();
     }
 
     private void checkNow() {
@@ -104,6 +128,7 @@ public final class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
                 checking = false;
+                if (hasWindowFocus()) DailyPrompts.recordReview(this, result);
                 render();
             });
         });
@@ -157,6 +182,20 @@ public final class MainActivity extends Activity {
         notificationButton.setVisibility(UpdateNotifications.enabled(this) ? View.GONE : View.VISIBLE);
         scheduleText.setText(!scheduleOk ? R.string.schedule_failed
                 : store.monitoringEnabled() ? R.string.schedule_enabled : R.string.schedule_paused);
+        boolean dailyEnabled = store.monitoringEnabled() && store.dailyOpeningEnabled();
+        boolean allowed = DailyPrompts.launchAllowed(this);
+        dailyText.setText(!dailyEnabled ? R.string.daily_paused
+                : allowed ? R.string.daily_enabled : R.string.daily_permission_needed);
+        dailyPermissionButton.setVisibility(dailyEnabled && !allowed ? View.VISIBLE : View.GONE);
+    }
+
+    private void enableDailyOpening() {
+        try {
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.daily_settings_unavailable, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void setStatus(int text, int color) {

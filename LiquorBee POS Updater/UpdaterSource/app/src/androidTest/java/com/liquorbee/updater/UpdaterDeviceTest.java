@@ -158,11 +158,7 @@ public class UpdaterDeviceTest {
             scenario.onActivity(activity -> {
                 store.save(release(installed + 1));
                 assertEquals("Out-of-date", ((TextView) activity.findViewById(R.id.status)).getText().toString());
-                ((Button) activity.findViewById(R.id.later_button)).performClick();
-                assertEquals(installed + 1, new UpdateStore(context).notifiedCode());
             });
-            UpdateNotifications.consider(context, release(installed + 1));
-            active(0);
             Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
             AtomicReference<Intent> downloadIntent = new AtomicReference<>();
             Instrumentation.ActivityMonitor monitor = new Instrumentation.ActivityMonitor() {
@@ -179,6 +175,21 @@ public class UpdaterDeviceTest {
                 assertEquals(UpdateConfig.APK_URL, downloadIntent.get().getDataString());
                 assertEquals(installed, InstalledPos.read(context).code);
             } finally { instrumentation.removeMonitor(monitor); }
+            ready.set(false);
+            for (int i = 0; i < 300 && !ready.get(); i++) {
+                scenario.onActivity(activity -> ready.set(activity.findViewById(R.id.check_button).isEnabled()));
+                Thread.sleep(100);
+            }
+            assertTrue(ready.get());
+            scenario.onActivity(activity -> {
+                store.save(release(installed + 1));
+                ((Button) activity.findViewById(R.id.later_button)).performClick();
+                assertEquals(installed + 1, new UpdateStore(context).notifiedCode());
+                assertTrue(new UpdateStore(context).dailyShownAt() > 0);
+                assertTrue(activity.isFinishing());
+            });
+            UpdateNotifications.consider(context, release(installed + 1));
+            active(0);
         }
     }
 
@@ -193,6 +204,40 @@ public class UpdaterDeviceTest {
             Activity activity = instrumentation.waitForMonitorWithTimeout(monitor, 10000);
             assertNotNull("Notification opens the review screen", activity);
             assertTrue(activity instanceof MainActivity);
+            instrumentation.runOnMainSync(activity::finish);
+        } finally { instrumentation.removeMonitor(monitor); }
+    }
+
+    @Test public void dailyAttemptIsNotCountedUntilMatchingActivityConfirms() {
+        long now = System.currentTimeMillis();
+        String token = store.beginDailyAttempt(now);
+        UpdateStore recreated = new UpdateStore(context);
+        assertEquals(now, recreated.dailyAttemptAt());
+        assertEquals(0, recreated.dailyShownAt());
+        assertFalse(recreated.confirmDailyOpened("untrusted-token", now));
+        assertEquals(0, recreated.dailyShownAt());
+        assertTrue(recreated.confirmDailyOpened(token, now));
+        assertEquals(now, new UpdateStore(context).dailyShownAt());
+        assertFalse(recreated.confirmDailyOpened(token, now + 1));
+    }
+
+    @Test public void dailyAutomaticLaunchOpensAndRecordsOnlyOnce() throws Exception {
+        assertTrue("Allow SYSTEM_ALERT_WINDOW before this test", DailyPrompts.launchAllowed(context));
+        store.markNotificationExplained();
+        store.setDailyOpening(true);
+        ReleaseCheck newer = release(installed + 1);
+        store.save(newer);
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(MainActivity.class.getName(), null, false);
+        try {
+            DailyPrompts.consider(context, newer);
+            Activity activity = instrumentation.waitForMonitorWithTimeout(monitor, 10000);
+            assertNotNull("Automatic review launch succeeded", activity);
+            instrumentation.waitForIdleSync();
+            assertTrue(store.dailyShownAt() > 0);
+            long firstAttempt = store.dailyAttemptAt();
+            DailyPrompts.consider(context, release(installed + 2));
+            assertEquals("Newer builds obey the same daily cap", firstAttempt, store.dailyAttemptAt());
             instrumentation.runOnMainSync(activity::finish);
         } finally { instrumentation.removeMonitor(monitor); }
     }

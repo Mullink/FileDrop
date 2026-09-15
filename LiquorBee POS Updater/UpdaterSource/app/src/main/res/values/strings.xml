@@ -24,7 +24,13 @@
     <string name="download_update">Download update</string>
     <string name="download_pos">Download LiquorBee POS</string>
     <string name="later">Later</string>
-    <string name="later_saved">You can download this update here anytime. We will notify you again for a newer build.</string>
+    <string name="later_saved">Update postponed for 24 hours. You can open the updater anytime.</string>
+    <string name="daily_switch">Open update screen once a day</string>
+    <string name="daily_enabled">While a newer POS build is available, open this screen at most once every 24 hours. Later postpones it for 24 hours. Opens only when the device is awake and unlocked, when Android runs a check.</string>
+    <string name="daily_paused">Automatic screen opening is paused. Update notifications can still be used when monitoring is on.</string>
+    <string name="daily_permission_needed">To open the update screen over the POS once a day, allow Display over other apps for LiquorBee Updater in Android settings. Without it, tap an update notification to review. Automatic opening may interrupt an active sale.</string>
+    <string name="daily_permission_button">Allow automatic opening</string>
+    <string name="daily_settings_unavailable">This device does not offer the required setting. Use update notifications to open the updater.</string>
     <string name="background_title">Background checks</string>
     <string name="background_switch">Check for updates automatically</string>
     <string name="schedule_enabled">Checks about once an hour, even when this screen is closed, and resumes after a restart. Android may delay checks to save power.</string>
@@ -40,5 +46,5 @@
     <string name="release_description">Latest build: LiquorBee on GitHub\nDownload: LiquorBee POS portal · iMin</string>
     <string name="view_version_file">View published version</string>
     <string name="no_browser">No browser is available to open the download. Install or enable a browser and try again.</string>
-    <string name="footer">LiquorBee Updater · 1.0.1</string>
+    <string name="footer">LiquorBee Updater · 1.0.2</string>
 </resources>

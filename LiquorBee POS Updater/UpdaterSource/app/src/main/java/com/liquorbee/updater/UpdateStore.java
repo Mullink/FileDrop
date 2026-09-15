@@ -11,6 +11,33 @@ public final class UpdateStore {
     }
 
     public boolean monitoringEnabled() { return prefs.getBoolean("monitoring", true); }
+    public boolean dailyOpeningEnabled() { return prefs.getBoolean("daily_opening", true); }
+    public void setDailyOpening(boolean enabled) { prefs.edit().putBoolean("daily_opening", enabled).apply(); }
+    public long dailyShownAt() { return prefs.getLong("daily_shown_at", 0); }
+    public long dailyAttemptAt() { return prefs.getLong("daily_attempt_at", 0); }
+
+    public String beginDailyAttempt(long now) {
+        synchronized (DailyPrompts.class) {
+            String token = java.util.UUID.randomUUID().toString();
+            prefs.edit().putLong("daily_attempt_at", now).putString("daily_pending_token", token).apply();
+            return token;
+        }
+    }
+
+    public boolean confirmDailyOpened(String token, long now) {
+        synchronized (DailyPrompts.class) {
+            if (token == null || !token.equals(prefs.getString("daily_pending_token", null))) return false;
+            deferDailyOpening(now);
+            return true;
+        }
+    }
+
+    public void deferDailyOpening(long now) {
+        synchronized (DailyPrompts.class) {
+            prefs.edit().putLong("daily_shown_at", now).remove("daily_pending_token").apply();
+        }
+    }
+
     public void setMonitoring(boolean enabled) { prefs.edit().putBoolean("monitoring", enabled).apply(); }
     public boolean notificationExplained() { return prefs.getBoolean("notification_explained", false); }
     public void markNotificationExplained() { prefs.edit().putBoolean("notification_explained", true).apply(); }
