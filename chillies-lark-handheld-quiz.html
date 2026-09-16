@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chillies Lark Handheld Certification Exam</title>
+<style>
+  :root{
+    --bg:#0b0f14; --card:#121923; --muted:#9aa7b5; --text:#f5f7fa;
+    --accent:#f3c74f; --good:#35c46a; --bad:#ff5d5d; --line:#253142;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:
+    radial-gradient(circle at top right,#1d2634 0,#0b0f14 45%);color:var(--text);min-height:100vh}
+  .wrap{max-width:900px;margin:0 auto;padding:34px 18px 70px}
+  .hero{margin-bottom:24px}
+  .eyebrow{color:var(--accent);font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:12px}
+  h1{font-size:clamp(34px,6vw,64px);line-height:.95;margin:10px 0 16px}
+  .sub{color:var(--muted);font-size:18px;max-width:720px}
+  .badge{display:inline-block;margin-top:10px;border:1px solid var(--line);padding:8px 12px;border-radius:999px;color:#dfe7ef}
+  .q{background:rgba(18,25,35,.94);border:1px solid var(--line);border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 10px 30px rgba(0,0,0,.16)}
+  .q h3{margin:0 0 14px;font-size:19px}
+  label{display:block;padding:11px 12px;border:1px solid var(--line);border-radius:12px;margin:9px 0;cursor:pointer;background:#0f151e}
+  label:hover{border-color:#40516a}
+  input{margin-right:9px}
+  button{border:0;border-radius:14px;padding:14px 20px;font-size:16px;font-weight:800;cursor:pointer}
+  #submit{background:var(--accent);color:#121212;width:100%;margin-top:14px}
+  #reset{background:#263140;color:white;width:100%;margin-top:10px}
+  .scoreline{margin-top:18px;text-align:center;color:var(--muted)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .modal.show{display:flex}
+  .modal-card{max-width:560px;width:100%;background:#111823;border:1px solid var(--line);border-radius:22px;padding:30px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .modal-card h2{font-size:34px;margin:0 0 10px}
+  .modal-card p{font-size:18px;color:var(--muted)}
+  .approved h2{color:var(--good)}
+  .denied h2{color:var(--bad)}
+  .tiny{font-size:13px;color:#7f8b98;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">Liquor Bee Internal Certification</div>
+    <h1>Chillies Lark Handheld Certification Exam</h1>
+    <div class="sub">Ten questions. No curve. No sympathy. A perfect score earns the only result that matters.</div>
+    <div class="badge">Required passing score: 10 / 10</div>
+  </div>
+
+  <form id="quiz">
+    <div class="q"><h3>1. Liquor Bee originally went to market in which month?</h3>
+      <label><input type="radio" name="q1" value="a"> January 2025</label>
+      <label><input type="radio" name="q1" value="b"> June 2025</label>
+      <label><input type="radio" name="q1" value="c"> January 2026</label>
+      <label><input type="radio" name="q1" value="d"> September 2026</label>
+    </div>
+
+    <div class="q"><h3>2. How many merchants did Liquor Bee scale to during its first year?</h3>
+      <label><input type="radio" name="q2" value="a"> 20</label>
+      <label><input type="radio" name="q2" value="b"> 40</label>
+      <label><input type="radio" name="q2" value="c"> 60</label>
+      <label><input type="radio" name="q2" value="d"> 100</label>
+    </div>
+
+    <div class="q"><h3>3. Which three states were Liquor Bee's current markets in September 2026?</h3>
+      <label><input type="radio" name="q3" value="a"> Mississippi, Alabama, Louisiana</label>
+      <label><input type="radio" name="q3" value="b"> Mississippi, Tennessee, Texas</label>
+      <label><input type="radio" name="q3" value="c"> Alabama, Oklahoma, Texas</label>
+      <label><input type="radio" name="q3" value="d"> Mississippi, Florida, Georgia</label>
+    </div>
+
+    <div class="q"><h3>4. What weekly website reorder milestone did Liquor Bee hit?</h3>
+      <label><input type="radio" name="q4" value="a"> $100,000/week</label>
+      <label><input type="radio" name="q4" value="b"> $250,000/week</label>
+      <label><input type="radio" name="q4" value="c"> $500,000/week</label>
+      <label><input type="radio" name="q4" value="d"> $1 million/week</label>
+    </div>
+
+    <div class="q"><h3>5. Approximately how many SKUs were in Liquor Bee's product data dictionary?</h3>
+      <label><input type="radio" name="q5" value="a"> 10,000</label>
+      <label><input type="radio" name="q5" value="b"> 50,000</label>
+      <label><input type="radio" name="q5" value="c"> 100,000</label>
+      <label><input type="radio" name="q5" value="d"> 1,000,000</label>
+    </div>
+
+    <div class="q"><h3>6. What does the Liquor Bee 80/20 report help stores identify?</h3>
+      <label><input type="radio" name="q6" value="a"> The roughly 20% of items driving roughly 80% of revenue</label>
+      <label><input type="radio" name="q6" value="b"> The 80 vendors with the slowest 20 deliveries</label>
+      <label><input type="radio" name="q6" value="c"> The 20 employees responsible for 80% of refunds</label>
+      <label><input type="radio" name="q6" value="d"> The 80 newest items with fewer than 20 sales</label>
+    </div>
+
+    <div class="q"><h3>7. Who can use Liquor Bee Wholesale Manager to place orders?</h3>
+      <label><input type="radio" name="q7" value="a"> Only other liquor stores</label>
+      <label><input type="radio" name="q7" value="b"> Permitted businesses such as restaurants, bars, country clubs, and liquor stores</label>
+      <label><input type="radio" name="q7" value="c"> Only restaurants</label>
+      <label><input type="radio" name="q7" value="d"> Only Liquor Bee employees</label>
+    </div>
+
+    <div class="q"><h3>8. About how much inventory was Liquor Bee managing across merchants each month?</h3>
+      <label><input type="radio" name="q8" value="a"> $1 million</label>
+      <label><input type="radio" name="q8" value="b"> $5 million</label>
+      <label><input type="radio" name="q8" value="c"> $10 million</label>
+      <label><input type="radio" name="q8" value="d"> $100 million</label>
+    </div>
+
+    <div class="q"><h3>9. Which two states were major Liquor Bee expansion targets?</h3>
+      <label><input type="radio" name="q9" value="a"> Florida and Georgia</label>
+      <label><input type="radio" name="q9" value="b"> Oklahoma and Texas</label>
+      <label><input type="radio" name="q9" value="c"> Arkansas and Tennessee</label>
+      <label><input type="radio" name="q9" value="d"> Nevada and Arizona</label>
+    </div>
+
+    <div class="q"><h3>10. During the Mississippi ABC 8–10 day shipping backlog, what did Liquor Bee recommend?</h3>
+      <label><input type="radio" name="q10" value="a"> Wait until inventory hits zero before ordering</label>
+      <label><input type="radio" name="q10" value="b"> Order one day of inventory at a time</label>
+      <label><input type="radio" name="q10" value="c"> Use a 2–3 week Shopping Cart report and plan important orders well in advance</label>
+      <label><input type="radio" name="q10" value="d"> Stop ordering until normal shipping resumes</label>
+    </div>
+
+    <button type="button" id="submit">Grade My Handheld Eligibility</button>
+    <button type="reset" id="reset">Reset Quiz</button>
+    <div class="scoreline" id="scoreline"></div>
+  </form>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-card" id="modalCard">
+    <h2 id="resultTitle"></h2>
+    <p id="resultText"></p>
+    <button id="closeBtn">Close</button>
+    <div class="tiny">Decision is final. Please direct all emotional appeals to absolutely nobody.</div>
+  </div>
+</div>
+
+<script>
+const answers={q1:'a',q2:'c',q3:'a',q4:'d',q5:'c',q6:'a',q7:'b',q8:'c',q9:'b',q10:'c'};
+const submit=document.getElementById('submit');
+const modal=document.getElementById('modal');
+const modalCard=document.getElementById('modalCard');
+const resultTitle=document.getElementById('resultTitle');
+const resultText=document.getElementById('resultText');
+const scoreline=document.getElementById('scoreline');
+const closeBtn=document.getElementById('closeBtn');
+
+submit.addEventListener('click',()=>{
+  let score=0, answered=0;
+  for(const [q,correct] of Object.entries(answers)){
+    const selected=document.querySelector(`input[name="${q}"]:checked`);
+    if(selected){answered++; if(selected.value===correct)score++;}
+  }
+  if(answered<10){
+    resultTitle.textContent='Finish the exam, Chillies.';
+    resultText.textContent=`You answered ${answered}/10 questions. Handheld procurement remains frozen.`;
+    modalCard.className='modal-card denied';
+  }else if(score===10){
+    resultTitle.textContent='Chillies Lark Approved';
+    resultText.textContent='10/10. YOU GET THE HANDHELD. Procurement may proceed with excessive confidence.';
+    modalCard.className='modal-card approved';
+  }else{
+    resultTitle.textContent='Chillies does not get a handheld';
+    resultText.textContent=`Score: ${score}/10. So close, yet somehow still handheld-less.`;
+    modalCard.className='modal-card denied';
+  }
+  scoreline.textContent=`Latest score: ${score}/10`;
+  modal.classList.add('show');
+});
+
+closeBtn.addEventListener('click',()=>modal.classList.remove('show'));
+modal.addEventListener('click',(e)=>{if(e.target===modal)modal.classList.remove('show')});
+</script>
+</body>
+</html>
