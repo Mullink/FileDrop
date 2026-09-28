@@ -2,6 +2,21 @@
 
 A separate Android app for checking and downloading the original LiquorBee POS iMin APK.
 
+## Updating the Updater app
+
+The **Updater app** card checks this app's own installed Android build against the release folder's [version.txt](../version.txt). It checks when the screen opens or resumes and every five minutes while visible; **Check for updater updates** checks immediately. A newer build offers **Download updater update** or **Later**. Later remembers that updater build across restarts; a manual check can still show it, and a newer release can prompt again. Connection failures show **Unable to check**, never a successful current-version result.
+
+Download opens [LiquorBee-Updater.apk](../LiquorBee-Updater.apk) from the GitHub release folder in the browser. Android handles installation. The installed version is checked again on return; downloading alone is not counted as an upgrade. Existing installations before 1.0.6 need this APK installed once to gain self-update checking. Future releases must retain the same package and signing key.
+
+These foreground self-checks use their own state. POS version checks, daily alarms, notifications, chosen time and daily Later behavior remain unchanged.
+
+### Which version file changes?
+
+- **New POS release:** publish the actual Quantic-signed POS APK at the configured portal URL, inspect its Android `versionCode`, then update `LiquorBeePOS/version.txt` to that integer. A new Updater APK is not required.
+- **New Updater release:** increase this project's `versionCode` and `versionName`, build/sign using the retained updater key, overwrite `LiquorBee-Updater.apk`, then update the release folder's `version.txt` to the matching build. Refresh the source archive and SHA-256 checksums with the release.
+
+Publish the APK before its version file so a prompt never offers the previous APK. Version files contain the integer Android build number, not a display string such as `1.2.2.20260928`.
+
 ## Daily check
 
 The default is **10:30 AM Central Time (America/Chicago)**, following daylight saving time automatically. In the updater, tap **Daily check: 10:30 AM · Change** to choose another time.

@@ -15,10 +15,14 @@ public final class InstalledPos {
         this.name = name;
     }
 
-    @SuppressWarnings("deprecation")
     public static InstalledPos read(Context context) {
+        return read(context, UpdateConfig.POS_PACKAGE);
+    }
+
+    @SuppressWarnings("deprecation")
+    public static InstalledPos read(Context context, String packageName) {
         try {
-            PackageInfo info = context.getPackageManager().getPackageInfo(UpdateConfig.POS_PACKAGE, 0);
+            PackageInfo info = context.getPackageManager().getPackageInfo(packageName, 0);
             return new InstalledPos(true, info.getLongVersionCode(),
                     info.versionName == null ? "Unknown" : info.versionName);
         } catch (PackageManager.NameNotFoundException e) {

@@ -35,6 +35,7 @@ public final class MainActivity extends Activity {
     private static final int NOTIFICATION_REQUEST = 7;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private UpdateStore store;
+    private SelfUpdateController selfUpdates;
     private boolean checking;
     private boolean scheduleOk = true;
     private TextView status, message, installedText, publishedText, checkedText, notificationText;
@@ -112,6 +113,8 @@ public final class MainActivity extends Activity {
         preferences = getSharedPreferences("liquorbee_updater", MODE_PRIVATE);
         preferences.registerOnSharedPreferenceChangeListener(preferenceListener);
         render();
+        selfUpdates = new SelfUpdateController(this, () -> hasWindowFocus()
+                && store.setupStep() == 0 && (setupDialog == null || !setupDialog.isShowing()));
 
     }
 
@@ -175,7 +178,13 @@ public final class MainActivity extends Activity {
             if (hasWindowFocus()) DailyPrompts.confirmOpened(this, getIntent());
             render();
             checkNow();
+            if (selfUpdates != null) selfUpdates.onResume();
         }
+    }
+
+    @Override protected void onPause() {
+        if (selfUpdates != null) selfUpdates.onPause();
+        super.onPause();
     }
 
     @Override protected void onNewIntent(Intent intent) {
@@ -188,6 +197,7 @@ public final class MainActivity extends Activity {
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && store != null) DailyPrompts.confirmOpened(this, getIntent());
+        if (hasFocus && selfUpdates != null) selfUpdates.maybePrompt();
     }
 
     private void checkNow() {
@@ -359,6 +369,7 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (selfUpdates != null) selfUpdates.close();
         if (setupDialog != null) setupDialog.dismiss();
         if (preferences != null) preferences.unregisterOnSharedPreferenceChangeListener(preferenceListener);
         executor.shutdownNow();

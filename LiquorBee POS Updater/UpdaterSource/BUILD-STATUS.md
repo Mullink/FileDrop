@@ -1,5 +1,28 @@
 # Verification status
 
+2026-09-28: LiquorBee Updater 1.0.6 / versionCode 7 / com.liquorbee.updater.
+
+## Self-update release
+
+The Updater checks its own GitHub version metadata when the screen opens/resumes and every five minutes while visible. A dedicated card supports manual checks and downloads. Later persists separately for each updater release; a manual check can reopen the prompt. Browser download is not treated as installation: the app rereads its installed package version on return.
+
+The existing POS download URL, POS version metadata, daily schedule, permissions, notifications and daily dismissal behavior are unchanged. The POS metadata remains 20260910. Self-update preferences are separate from POS preferences.
+
+## Release validation
+
+- 48 JVM tests passed, with zero failures/errors.
+- Debug/release lint and release compilation passed.
+- All 17 existing POS instrumentation tests passed on the Android 15 / API 35 emulator.
+- All 3 new self-update instrumentation tests passed after correcting test timing for Android's asynchronous dialog callbacks. They cover persistent Later/manual recheck, the exact updater download URL, unchanged installed version until installation, preserved POS scheduling/dismissal settings, and explicit network failure status. Existing POS checks may refresh their cached results normally on activity resume.
+- Installed the original build 6 and then upgraded it in place to the signed build 7 successfully.
+- APK signature verification passed using the original updater certificate. SHA-256: b2b601fc07882e8aaa11849546b5fd625175ee5571bc0a297d039d7ee610d44c.
+- Release APK manifest and version.txt both report build 7; display version is 1.0.6.
+
+No physical iMin was connected for this release. Install this APK once over the existing updater on a register and verify normal POS use and the new Updater app card. Download and installation remain user-controlled by the browser and Android.
+
+Signing keys/passwords remain private and excluded from the source archive and GitHub.
+
+## Previous release verification (1.0.5 / build 6)
 2026-09-15: LiquorBee Updater 1.0.5 / versionCode 6 / com.liquorbee.updater.
 
 ## Permission setup and scheduled-check evidence
