@@ -80,7 +80,7 @@
     <string name="release_description">Latest build: LiquorBee on GitHub\nDownload: LiquorBee POS portal · iMin</string>
     <string name="view_version_file">View published version</string>
     <string name="no_browser">No browser is available to open the download. Install or enable a browser and try again.</string>
-    <string name="footer">LiquorBee Updater · 1.0.7</string>
+    <string name="footer">LiquorBee Updater · 1.0.8</string>
     <string name="self_update_heading">Updater app</string>
     <string name="self_update_check">Check for updater updates</string>
     <string name="self_update_download">Download updater update</string>
@@ -91,5 +91,6 @@
     <string name="self_update_prompt">A newer LiquorBee Updater is available. You have version %1$s; build %2$d is ready to download. Android will guide you through installation.</string>
     <string name="self_update_current">You are running the latest published LiquorBee Updater.</string>
     <string name="self_update_failed">Could not check for a LiquorBee Updater update. Check your connection and try again.</string>
-    <string name="watch_tutorial">Watch setup tutorial</string>
+    <string name="watch_tutorial">Watch on YouTube</string>
+    <string name="tutorial_hint">Setup tutorial · Tap the play button to watch</string>
 </resources>

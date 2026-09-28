@@ -2,7 +2,7 @@
 
 A separate Android app for checking and downloading the original LiquorBee POS iMin APK.
 
-A **Watch setup tutorial** button at the very top, above the logo, opens https://www.youtube.com/watch?v=bq4rl7faP2k in YouTube or the browser.
+A prominent red **Watch on YouTube** button with a white play icon appears above the logo. The setup tutorial caption explains that tapping it opens https://www.youtube.com/watch?v=bq4rl7faP2k in YouTube or the browser.
 
 ## Updating the Updater app
 

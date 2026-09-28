@@ -1,5 +1,15 @@
 # Verification status
 
+2026-09-28: LiquorBee Updater 1.0.8 / versionCode 9 / com.liquorbee.updater.
+
+## Prominent YouTube tutorial link
+
+The top tutorial control now uses a red background, white play icon, bold Watch on YouTube label, and a setup tutorial/tap-to-watch caption. The existing YouTube URL and click handler are unchanged.
+
+Release compilation, release lint, APK signature verification, build metadata verification and installation on an Android 15 emulator passed. The actual emulator screen was visually checked for readable button text, icon and caption. No new automated tests were added for this styling-only change. POS update behavior is unchanged.
+
+## Previous release verification (1.0.7 / build 8)
+
 2026-09-28: LiquorBee Updater 1.0.7 / versionCode 8 / com.liquorbee.updater.
 
 ## Tutorial button release
