@@ -4,6 +4,8 @@
 - [Android source](UpdaterSource) · [Source archive](UpdaterSource.zip)
 - [Build and test status](UpdaterSource/BUILD-STATUS.md) · [APK SHA-256](SHA256SUMS.txt)
 
+A **Watch setup tutorial** button at the very top, above the logo, opens https://www.youtube.com/watch?v=bq4rl7faP2k in YouTube or the browser.
+
 ## Updating the Updater app
 
 The **Updater app** card checks this app's own installed Android build against this folder's `version.txt`. It checks when the screen opens or resumes and every five minutes while visible; **Check for updater updates** checks immediately. A newer build offers **Download updater update** or **Later**. Later remembers that updater build across restarts; a manual check can still show it, and a newer release can prompt again. Connection failures show **Unable to check**, never a successful current-version result.
@@ -21,7 +23,7 @@ Publish the APK before its version file so a prompt never offers the previous AP
 
 ## Daily check at 10:30 AM Central Time
 
-LiquorBee Updater 1.0.6 checks once a day at **10:30 AM Chicago time**, following daylight saving time. Tap **Daily check: 10:30 AM · Change** in the app to choose another time. The app displays the next check. Saving a time schedules its next occurrence, including today even if an earlier check already ran. Saving the current minute checks shortly. It then repeats daily.
+LiquorBee Updater 1.0.7 checks once a day at **10:30 AM Chicago time**, following daylight saving time. Tap **Daily check: 10:30 AM · Change** in the app to choose another time. The app displays the next check. Saving a time schedules its next occurrence, including today even if an earlier check already ran. Saving the current minute checks shortly. It then repeats daily.
 
 At the scheduled time, it reads the installed LiquorBee POS build and the small public version file. It opens the updater only if the installed POS is out of date and automatic opening is enabled and permitted. Current, missing or unverifiable POS versions do not auto-open. Later dismisses today's review; tomorrow's check stays scheduled.
 
@@ -36,7 +38,7 @@ The register must be awake and unlocked for the review screen. Android/OEM/kiosk
 
 The app uses a brief foreground service only while the scheduled check runs. It fetches only [LiquorBeePOS/version.txt](../LiquorBeePOS/version.txt), not the full POS APK. Download opens the original Quantic-signed POS APK in the browser; Android handles installation. The POS APK is never modified or re-signed.
 
-This folder's version.txt is updater build **7**. POS metadata remains **20260910** (POS 1.2.1). These are separate version numbers.
+This folder's version.txt is updater build **8** (1.0.7). The separate LiquorBeePOS/version.txt announces the POS build. The installed POS build is read directly from Android; installing the Updater does not install a POS release.
 
 ## If a scheduled opening is missed
 
@@ -46,4 +48,4 @@ Read **Last scheduled check** in the app. This separate result survives reopenin
 
 Always overwrite **LiquorBee-Updater.apk**. Do not create versioned APK filenames. Increase Android's internal versionCode, keep the same private updater key, and refresh version.txt, SHA256SUMS.txt and both source copies. No keys or credentials belong in this folder.
 
-Clean compilation, both lint variants, 48 unit tests and 20 emulator tests passed. See the [verification status](UpdaterSource/BUILD-STATUS.md) for the emulator results and test limits. Physical iMin testing remains.
+For 1.0.7, release compilation, release lint, and APK signature/version verification passed. The preceding self-update release passed 48 unit tests and 20 emulator tests. See the [verification status](UpdaterSource/BUILD-STATUS.md) for the emulator results and test limits. Physical iMin testing remains.

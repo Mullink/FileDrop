@@ -1,5 +1,15 @@
 # Verification status
 
+2026-09-28: LiquorBee Updater 1.0.7 / versionCode 8 / com.liquorbee.updater.
+
+## Tutorial button release
+
+Watch setup tutorial appears above the logo at the top of the screen and opens the user-provided YouTube URL: https://www.youtube.com/watch?v=bq4rl7faP2k. It uses the existing external-link handler. POS and updater version-check logic are unchanged.
+
+Release compilation, release lint, APK signature verification and manifest/build metadata checks passed. This small UI-link change did not rerun the prior release's emulator suite. The signing certificate remains b2b601fc07882e8aaa11849546b5fd625175ee5571bc0a297d039d7ee610d44c. Physical register acceptance remains with the operator.
+
+## Previous release verification (1.0.6 / build 7)
+
 2026-09-28: LiquorBee Updater 1.0.6 / versionCode 7 / com.liquorbee.updater.
 
 ## Self-update release

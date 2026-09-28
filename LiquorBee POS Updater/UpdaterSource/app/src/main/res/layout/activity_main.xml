@@ -7,6 +7,8 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="vertical" android:background="@color/navy" android:padding="24dp">
+                <Button android:id="@+id/tutorial_button" style="@style/SecondaryButton"
+                    android:layout_marginBottom="16dp" android:text="@string/watch_tutorial" />
                 <ImageView android:layout_width="176dp" android:layout_height="176dp"
                     android:layout_gravity="center_horizontal" android:scaleType="fitCenter"
                     android:src="@drawable/brand_logo" android:contentDescription="@string/app_name" />

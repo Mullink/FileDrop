@@ -10,5 +10,7 @@ public final class UpdateConfig {
             "https://raw.githubusercontent.com/Mullink/FileDrop/main/LiquorBee%20POS%20Updater/version.txt";
     public static final String UPDATER_APK_URL =
             "https://raw.githubusercontent.com/Mullink/FileDrop/main/LiquorBee%20POS%20Updater/LiquorBee-Updater.apk";
+    public static final String TUTORIAL_URL =
+            "https://www.youtube.com/watch?v=bq4rl7faP2k";
     private UpdateConfig() { }
 }

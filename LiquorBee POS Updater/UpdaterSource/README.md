@@ -2,6 +2,8 @@
 
 A separate Android app for checking and downloading the original LiquorBee POS iMin APK.
 
+A **Watch setup tutorial** button at the very top, above the logo, opens https://www.youtube.com/watch?v=bq4rl7faP2k in YouTube or the browser.
+
 ## Updating the Updater app
 
 The **Updater app** card checks this app's own installed Android build against the release folder's [version.txt](../version.txt). It checks when the screen opens or resumes and every five minutes while visible; **Check for updater updates** checks immediately. A newer build offers **Download updater update** or **Later**. Later remembers that updater build across restarts; a manual check can still show it, and a newer release can prompt again. Connection failures show **Unable to check**, never a successful current-version result.

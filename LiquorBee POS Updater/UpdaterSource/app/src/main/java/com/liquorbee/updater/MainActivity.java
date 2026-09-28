@@ -55,6 +55,7 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         applyInsets();
+        findViewById(R.id.tutorial_button).setOnClickListener(v -> openUrl(UpdateConfig.TUTORIAL_URL));
         store = new UpdateStore(this);
         UpdateNotifications.createChannel(this);
         scheduleOk = UpdateScheduler.reconcile(this);
