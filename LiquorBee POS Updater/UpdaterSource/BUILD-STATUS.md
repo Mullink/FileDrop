@@ -1,5 +1,13 @@
 # Verification status
 
+2026-09-28: LiquorBee Updater 1.0.9 / versionCode 10 / com.liquorbee.updater.
+
+## Compact tutorial button
+
+The red YouTube button now wraps its text and play icon with 16dp side padding and a 6dp icon gap. It is horizontally centered, with a 48dp minimum touch height. The URL and existing click handler are unchanged. Release compilation, release lint, signed APK verification and manifest/build checks passed. This layout-only adjustment did not rerun the previous release's emulator checks.
+
+## Previous release verification (1.0.8 / build 9)
+
 2026-09-28: LiquorBee Updater 1.0.8 / versionCode 9 / com.liquorbee.updater.
 
 ## Prominent YouTube tutorial link

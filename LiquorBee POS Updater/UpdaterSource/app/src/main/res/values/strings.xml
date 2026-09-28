@@ -80,7 +80,7 @@
     <string name="release_description">Latest build: LiquorBee on GitHub\nDownload: LiquorBee POS portal · iMin</string>
     <string name="view_version_file">View published version</string>
     <string name="no_browser">No browser is available to open the download. Install or enable a browser and try again.</string>
-    <string name="footer">LiquorBee Updater · 1.0.8</string>
+    <string name="footer">LiquorBee Updater · 1.0.9</string>
     <string name="self_update_heading">Updater app</string>
     <string name="self_update_check">Check for updater updates</string>
     <string name="self_update_download">Download updater update</string>
