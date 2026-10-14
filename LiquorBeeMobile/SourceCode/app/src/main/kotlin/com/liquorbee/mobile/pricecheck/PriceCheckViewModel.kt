@@ -7,6 +7,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 data class PriceCheckUiState(
     val editorOpen: Boolean = false,
@@ -37,6 +39,32 @@ class PriceCheckViewModel(private val apiService: ApiService) : ViewModel() {
     private var lookupJob: Job? = null
     private var searchJob: Job? = null
     private var editorJob: Job? = null
+    private var activeCategoriesCache: List<InventoryCategoryDto>? = null
+    private var categoriesCheckedAt = 0L
+
+    private suspend fun activeCategories(): List<InventoryCategoryDto> {
+        val now = android.os.SystemClock.elapsedRealtime()
+        activeCategoriesCache?.let { if (now - categoriesCheckedAt < 300_000) return it }
+        val response = apiService.getPriceCheckCategories()
+        if (!response.isSuccessful) error("Could not load categories. Please try again.")
+        val categories = response.body() ?: error("No categories returned.")
+        val limit = Semaphore(4)
+        val active = coroutineScope {
+            categories.distinctBy { it.categoryId }.map { category -> async {
+                limit.withPermit {
+                    // Categories are Quantic items; their item ID is exposed as categoryId.
+                    val details = apiService.getPriceCheckEdit(category.categoryId)
+                    if (!details.isSuccessful) error("Could not check category status. Please try again.")
+                    val item = details.body() ?: error("No category details returned.")
+                    if (item.itemId != category.categoryId) error("Category details did not match.")
+                    category.takeIf { item.status == 1 }
+                }
+            } }.awaitAll().filterNotNull()
+        }
+        activeCategoriesCache = active
+        categoriesCheckedAt = android.os.SystemClock.elapsedRealtime()
+        return active
+    }
 
     fun onUpcChanged(value: String) {
         if (_uiState.value.editorOpen) return
@@ -137,14 +165,14 @@ class PriceCheckViewModel(private val apiService: ApiService) : ViewModel() {
                 coroutineScope {
                     val itemResponse = async { apiService.getPriceCheckEdit(id) }
                     val vendorResponse = async { apiService.getPriceCheckVendors() }
-                    val categoryResponse = async { apiService.getPriceCheckCategories() }
+                    val categoryResponse = async { activeCategories() }
                     val editable = itemResponse.await()
                     val vendors = vendorResponse.await()
                     val categories = categoryResponse.await()
-                    if (!editable.isSuccessful || !vendors.isSuccessful || !categories.isSuccessful)
+                    if (!editable.isSuccessful || !vendors.isSuccessful)
                         error("Could not load item details. Please try again.")
                     _uiState.value = _uiState.value.copy(editorItem = editable.body() ?: error("No item details returned."),
-                        vendors = vendors.body().orEmpty(), categories = categories.body().orEmpty())
+                        vendors = vendors.body().orEmpty(), categories = categories)
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _uiState.value = _uiState.value.copy(editorError = e.message ?: "Could not load item.") }
