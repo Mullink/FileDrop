@@ -2,9 +2,11 @@ package com.liquorbee.mobile.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,23 +14,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.liquorbee.mobile.R
 import com.liquorbee.mobile.core.ui.LiquorBeeNavy
@@ -36,61 +51,66 @@ import com.liquorbee.mobile.core.ui.LiquorBeeNavy
 @Composable
 fun LoginScreen(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    var passwordVisible by remember { mutableStateOf(false) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(LiquorBeeNavy)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(PaddingValues(horizontal = 28.dp, vertical = 48.dp)),
+                .heightIn(min = maxHeight)
+                .padding(start = 28.dp, end = 28.dp, top = 24.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // The glow wordmark image has heavy blur baked into the source artwork itself (not just
-            // a glow effect around crisp edges) - it reads fine on a large desktop splash but looks
-            // genuinely out-of-focus at phone width. Crisp hex mark + real text instead, both sharp
-            // at any density.
             Image(
-                painter = painterResource(id = R.drawable.liquor_bee_logo),
-                contentDescription = null,
+                painter = painterResource(id = R.drawable.liquorbee_nav_logo),
+                contentDescription = "Liquor Bee",
                 modifier = Modifier
-                    .height(120.dp)
-                    .padding(bottom = 4.dp)
+                    .padding(bottom = 28.dp)
+                    .fillMaxWidth(0.8f)
+                    .height(100.dp)
             )
 
-            Text(
-                "Liquor Bee",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 28.dp)
-            )
-
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                 Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Username", style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 6.dp))
                     OutlinedTextField(
                         value = uiState.username,
                         onValueChange = viewModel::onUsernameChange,
-                        label = { Text("Username") },
                         singleLine = true,
                         enabled = !uiState.isLoading,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Username" }
                     )
 
+                    Text("Password", style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
                     OutlinedTextField(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChange,
-                        label = { Text("Password") },
                         singleLine = true,
                         enabled = !uiState.isLoading,
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { passwordVisible = !passwordVisible },
+                                enabled = !uiState.isLoading
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                )
+                            }
+                        },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp)
+                            .semantics { contentDescription = "Password" }
                     )
 
                     Row(
@@ -105,12 +125,15 @@ fun LoginScreen(viewModel: LoginViewModel) {
                         Text("Remember Me")
                     }
 
-                    if (uiState.errorMessage != null) {
-                        Text(
-                            text = uiState.errorMessage.orEmpty(),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(top = 12.dp)
-                        )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(32.dp)
+                            .verticalScroll(rememberScrollState())
+                            .semantics { liveRegion = LiveRegionMode.Polite }
+                    ) {
+                        uiState.errorMessage?.let { message ->
+                            Text(text = message, color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
                     }
 
                     Button(
@@ -118,7 +141,7 @@ fun LoginScreen(viewModel: LoginViewModel) {
                         enabled = !uiState.isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 20.dp)
+                            .padding(top = 4.dp)
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(

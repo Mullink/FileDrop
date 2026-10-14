@@ -1,6 +1,10 @@
 package com.liquorbee.mobile.pricecheck
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,26 +15,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,23 +48,48 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import com.liquorbee.mobile.core.ui.LiquorBeeNavyLight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.liquorbee.mobile.core.network.PriceCheckItemDto
-import com.liquorbee.mobile.core.ui.LiquorBeeBlue
+import com.liquorbee.mobile.core.ui.LbActive
+import com.liquorbee.mobile.core.ui.LbBad
+import com.liquorbee.mobile.core.ui.LbBorder
+import com.liquorbee.mobile.core.ui.LbDivider
+import com.liquorbee.mobile.core.ui.LbFaint
+import com.liquorbee.mobile.core.ui.LbGood
+import com.liquorbee.mobile.core.ui.LbMuted
+import com.liquorbee.mobile.core.ui.LbPage
+import com.liquorbee.mobile.core.ui.LbText
 import com.liquorbee.mobile.core.ui.LiquorBeeNavy
+import com.liquorbee.mobile.core.ui.InterFontFamily
 import java.text.NumberFormat
 import java.util.Locale
+
+// Flat redesign matching the web Price Check page (price-check.component.html/.css): grey page,
+// white cards with a thin border and 8dp radius, grey labels above fields, item name leading
+// with codes underneath, one big green price, and plain label/value rows for the details.
+
+private val CardShape = RoundedCornerShape(8.dp)
+private val FieldShape = RoundedCornerShape(6.dp)
 
 @Composable
 fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
+    if (uiState.editorOpen) {
+        PriceCheckEditor(uiState, onNext = viewModel::closeEditor,
+            onBack = { viewModel.closeEditor(); onBack() }, onReload = viewModel::editItem, onSave = viewModel::saveItem)
+        return
+    }
     val upcFocusRequester = remember { FocusRequester() }
 
     // Every screen open, and again after every Clear, the UPC field should be focused so the
@@ -71,17 +101,19 @@ fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = LbPage,
         topBar = {
             TopAppBar(
-                title = { Text("Price Check") },
+                title = { Text("Price Check", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = LiquorBeeNavy,
-                    titleContentColor = LiquorBeeBlue
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
                 )
             )
         }
@@ -90,79 +122,32 @@ fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = uiState.upcText,
-                    onValueChange = viewModel::onUpcChanged,
-                    label = { Text("Scan or enter UPC") },
-                    singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(upcFocusRequester)
-                )
-                IconButton(onClick = viewModel::clear) {
-                    Icon(Icons.Filled.Clear, contentDescription = "Clear")
-                }
-            }
+            SearchCard(
+                uiState = uiState,
+                upcFocusRequester = upcFocusRequester,
+                onUpcChanged = viewModel::onUpcChanged,
+                onClear = viewModel::clear,
+                onSelectNameResult = viewModel::selectNameResult
+            )
 
-            if (uiState.upcLoading) {
-                Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.Center) {
-                    CircularProgressIndicator()
-                }
-            }
+            uiState.saveMessage?.let { Text(it, color = LbGood) }
+            uiState.lookupError?.let { Text(it, color = LbBad) }
 
-            if (uiState.notFound) {
-                Text(
-                    "No item found for that barcode.",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            }
-
-            uiState.selectedItem?.let { item ->
-                PriceResultCard(item = item, modifier = Modifier.padding(top = 16.dp))
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-            HorizontalDivider()
-
-            TextButton(
-                onClick = viewModel::toggleNameSearch,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.Search, contentDescription = null)
-                Spacer(modifier = Modifier.padding(start = 6.dp))
-                Text("Search by Name Instead")
-                Spacer(modifier = Modifier.padding(start = 6.dp))
-                Icon(if (uiState.nameSearchExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
-            }
-
-            if (uiState.nameSearchExpanded) {
-                OutlinedTextField(
-                    value = uiState.nameQuery,
-                    onValueChange = viewModel::onNameQueryChanged,
-                    label = { Text("Item name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (uiState.nameSearchLoading) {
-                    Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
-                        CircularProgressIndicator(modifier = Modifier.height(20.dp))
-                    }
-                }
-
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(uiState.nameResults) { result ->
-                        ListItem(
-                            headlineContent = { Text(result.itemName.orEmpty()) },
-                            supportingContent = { Text(result.itemCode.orEmpty()) },
-                            modifier = Modifier.clickable { viewModel.selectNameResult(result) }
-                        )
-                    }
+            if (uiState.notFound && !uiState.upcLoading) {
+                FlatCard {
+                    Text(
+                        "No matching items. Try another UPC, SKU, or item name.",
+                        color = LbMuted,
+                        fontSize = 14.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 28.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -171,134 +156,307 @@ fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
     if (uiState.showAmbiguousDialog) {
         AlertDialog(
             onDismissRequest = viewModel::dismissAmbiguousDialog,
-            title = { Text("Multiple items share this barcode") },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(12.dp),
+            title = {
+                Text(
+                    "Multiple items match this barcode",
+                    color = LbText,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
             text = {
-                LazyColumn {
-                    items(uiState.ambiguousMatches) { match ->
-                        ListItem(
-                            headlineContent = { Text(match.itemName.orEmpty()) },
-                            supportingContent = { Text(match.itemCode.orEmpty()) },
-                            modifier = Modifier.clickable { viewModel.selectAmbiguousMatch(match) }
-                        )
-                    }
-                }
+                ResultList(
+                    items = uiState.ambiguousMatches,
+                    onSelect = viewModel::selectAmbiguousMatch
+                )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::dismissAmbiguousDialog) { Text("Cancel") }
+                TextButton(onClick = viewModel::dismissAmbiguousDialog) {
+                    Text("Cancel", color = LbText)
+                }
             }
         )
     }
 }
 
 @Composable
-private fun PriceResultCard(item: PriceCheckItemDto, modifier: Modifier = Modifier) {
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale.US) }
-    fun fmt(v: Double?) = if (v != null) currency.format(v) else "—"
-
-    // The "hero" (large) price flips between card/cash based on the store's own pricing setting
-    // for this item, same as the web app - the other one is always shown as a smaller secondary
-    // line rather than hidden entirely.
-    val byCard = item.pricingByCardPrice == true
-    val heroLabel = if (byCard) "Card Price" else "Cash Price"
-    val heroValue = if (byCard) item.cardPrice else item.cashPrice
-    val secondaryLabel = if (byCard) "Cash Price" else "Card Price"
-    val secondaryValue = if (byCard) item.cashPrice else item.cardPrice
-
-    val inStock = (item.qtyInHand ?: 0) > 0
-    val stockColor = if (inStock) Color(0xFF2ECC71) else Color(0xFFE74C3C)
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column {
-            // Hero header: name/code + the big price, on a navy-to-blue gradient so the number
-            // that matters most reads instantly at a glance.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Brush.linearGradient(listOf(LiquorBeeNavy, LiquorBeeNavyLight, LiquorBeeBlue)))
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(item.itemName.orEmpty(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                            Text(item.itemCode.orEmpty(), color = Color.White.copy(alpha = 0.7f))
-                        }
-                        StockBadge(inStock = inStock, color = stockColor)
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(heroLabel.uppercase(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
-                    Text(fmt(heroValue), style = MaterialTheme.typography.headlineLarge, color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold)
-                    Text("$secondaryLabel: ${fmt(secondaryValue)}", color = Color.White.copy(alpha = 0.75f))
-                }
-            }
-
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricPill("Cost", fmt(item.cog), Color(0xFF3BB2FF), Modifier.weight(1f))
-                    MetricPill(
-                        "Margin",
-                        item.marginPercent?.let { "%.1f%%".format(it) } ?: "—",
-                        if ((item.marginPercent ?: 0.0) >= 0) Color(0xFF2ECC71) else Color(0xFFE74C3C),
-                        Modifier.weight(1f)
-                    )
-                    MetricPill("Qty on Hand", item.qtyInHand?.toString() ?: "—", stockColor, Modifier.weight(1f))
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(10.dp))
-
-                DetailRow("MSRP", fmt(item.msrp))
-                DetailRow("Markup %", item.markupPercent?.let { "%.1f%%".format(it) } ?: "—")
-                item.vendorName?.let { DetailRow("Vendor", it) }
-                item.categoryName?.let { DetailRow("Category", it) }
+private fun SearchCard(
+    uiState: PriceCheckUiState,
+    upcFocusRequester: FocusRequester,
+    onUpcChanged: (String) -> Unit,
+    onClear: () -> Unit,
+    onSelectNameResult: (PriceCheckItemDto) -> Unit
+) {
+    FlatCard {
+        Column(modifier = Modifier.padding(16.dp)) {
+            FlatTextField(
+                value = uiState.upcText,
+                onValueChange = onUpcChanged,
+                placeholder = "",
+                keyboardType = KeyboardType.Text,
+                loading = uiState.upcLoading,
+                onClear = if (uiState.upcText.isNotEmpty()) onClear else null,
+                modifier = Modifier.focusRequester(upcFocusRequester)
+            )
+            Text("Scan UPC or search UPC, item name, or SKU", color = LbMuted,
+                fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            if (uiState.nameResults.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                ResultList(items = uiState.nameResults, onSelect = onSelectNameResult)
             }
         }
     }
 }
 
 @Composable
-private fun StockBadge(inStock: Boolean, color: Color) {
+private fun PriceResultCard(item: PriceCheckItemDto) {
+    // The hero (big green) price flips between card/cash based on the store's own pricing
+    // setting for this item, same as the web app - the other one is shown as a smaller
+    // secondary line rather than hidden entirely.
+    val byCard = item.pricingByCardPrice == true
+    val heroLabel = if (byCard) "Card Price" else "Cash Price"
+    val heroValue = if (byCard) item.cardPrice else item.cashPrice
+    val secondaryLabel = if (byCard) "Cash Price" else "Card Price"
+    val secondaryValue = if (byCard) item.cashPrice else item.cardPrice
+
+    FlatCard {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Item head: name leads, codes and category in small grey underneath.
+            Text(item.itemName.orEmpty(), color = LbText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 24.sp)
+            val codes = listOfNotNull(
+                item.itemCode?.takeIf { it.isNotBlank() }?.let { "SKU: $it" },
+                item.barcode?.takeIf { it.isNotBlank() }?.let { "UPC: $it" }
+            )
+            if (codes.isNotEmpty()) {
+                Text(codes.joinToString("    "), color = LbMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+            val category = listOfNotNull(
+                item.superCategoryName?.takeIf { it.isNotBlank() },
+                item.categoryName?.takeIf { it.isNotBlank() }
+            )
+            if (category.isNotEmpty()) {
+                Text(category.joinToString(" › "), color = LbMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+
+            HorizontalDivider(color = LbDivider, modifier = Modifier.padding(top = 16.dp))
+
+            // Price section
+            Text(heroLabel, color = LbMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 18.dp))
+            Text(
+                formatMoney(heroValue),
+                color = LbGood,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 46.sp,
+                style = TabularNumbers
+            )
+            Column(
+                modifier = Modifier.padding(top = 10.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (secondaryValue != null) {
+                    PriceLine(secondaryLabel) {
+                        Text(formatMoney(secondaryValue), color = LbText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, style = TabularNumbers)
+                    }
+                }
+                if (item.msrp != null && item.msrp != heroValue) {
+                    PriceLine("MSRP") {
+                        Text(
+                            formatMoney(item.msrp),
+                            color = LbFaint,
+                            fontSize = 15.sp,
+                            textDecoration = TextDecoration.LineThrough,
+                            style = TabularNumbers
+                        )
+                    }
+                }
+            }
+
+            DiscountBadge(eligible = item.discountEligible == true)
+
+            // Details: one label/value row each, thin dividers, like the web stat grid on phones.
+            Column(modifier = Modifier.padding(top = 18.dp)) {
+                HorizontalDivider(color = LbDivider)
+                val qty = item.qtyInHand
+                StatRow(
+                    "Stock",
+                    qty?.let { "$it on hand" } ?: "—",
+                    valueColor = when {
+                        qty == null -> LbText
+                        qty > 0 -> LbGood
+                        else -> LbBad
+                    }
+                )
+                StatRow("Cost", formatMoney(item.cog))
+                StatRow("Markup", formatPercent(item.markupPercent))
+                StatRow("Margin", formatPercent(item.marginPercent))
+                item.vendorName?.takeIf { it.isNotBlank() }?.let { StatRow("Vendor", it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlatCard(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .background(color.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .fillMaxWidth()
+            .background(Color.White, CardShape)
+            .border(1.dp, LbBorder, CardShape)
     ) {
-        Text(
-            if (inStock) "IN STOCK" else "OUT OF STOCK",
-            color = color,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.labelSmall
-        )
+        content()
     }
 }
 
 @Composable
-private fun MetricPill(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+private fun FieldLabel(text: String) {
+    Text(text, color = LbMuted, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 6.dp))
+}
+
+@Composable
+private fun FlatTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType,
+    loading: Boolean,
+    modifier: Modifier = Modifier,
+    onClear: (() -> Unit)? = null
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = LbFaint, fontSize = 16.sp) },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search items", tint = LbMuted, modifier = Modifier.size(20.dp)) },
+        singleLine = true,
+        textStyle = TextStyle(color = LbText, fontSize = 16.sp, fontFamily = InterFontFamily),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        shape = FieldShape,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = LbFaint,
+            unfocusedBorderColor = LbBorder,
+            focusedContainerColor = LbPage,
+            unfocusedContainerColor = LbPage,
+            cursorColor = LbActive
+        ),
+        trailingIcon = if (loading || onClear != null) {
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            color = LbActive,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    if (onClear != null) {
+                        IconButton(onClick = onClear) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear", tint = LbFaint, modifier = Modifier.size(20.dp))
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(14.dp))
+                    }
+                }
+            }
+        } else {
+            null
+        },
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun ResultList(items: List<PriceCheckItemDto>, onSelect: (PriceCheckItemDto) -> Unit) {
     Column(
-        modifier = modifier
-            .background(accent.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        Text(label, color = Color.Gray, style = MaterialTheme.typography.labelSmall)
-        Text(value, color = accent, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun DetailRow(label: String, value: String) {
-    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .heightIn(max = 320.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-        Text(label, color = Color.Gray)
-        Text(value, fontWeight = FontWeight.Medium)
+        items.forEachIndexed { index, result ->
+            if (index > 0) HorizontalDivider(color = LbDivider)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .clickable { onSelect(result) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        result.itemName.orEmpty(),
+                        color = LbText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    result.itemCode?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, color = LbFaint, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(formatMoney(result.cashPrice), color = LbGood, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, style = TabularNumbers)
+            }
+        }
     }
 }
+
+@Composable
+private fun PriceLine(label: String, value: @Composable () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(label, color = LbMuted, fontSize = 13.sp)
+        value()
+    }
+}
+
+@Composable
+private fun DiscountBadge(eligible: Boolean) {
+    val shape = RoundedCornerShape(999.dp)
+    val (bg, border, fg) = if (eligible) {
+        Triple(Color(0xFFECFDF3), Color(0xFFB7EBC9), LbGood)
+    } else {
+        Triple(Color(0xFFFEF2F2), Color(0xFFFECACA), LbBad)
+    }
+    Text(
+        if (eligible) "Discount Eligible" else "Not Discount Eligible",
+        color = fg,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .background(bg, shape)
+            .border(1.dp, border, shape)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    )
+}
+
+@Composable
+private fun StatRow(label: String, value: String, valueColor: Color = LbText) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        Text(label, color = LbMuted, fontSize = 13.sp)
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Medium, style = TabularNumbers)
+    }
+    HorizontalDivider(color = LbDivider)
+}
+
+private val TabularNumbers = TextStyle(fontFeatureSettings = "tnum", fontFamily = InterFontFamily)
+
+private val currencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(Locale.US)
+
+private fun formatMoney(value: Double?): String = value?.let { currencyFormat.format(it) } ?: "—"
+
+private fun formatPercent(value: Double?): String = value?.let { "%.1f%%".format(it) } ?: "—"

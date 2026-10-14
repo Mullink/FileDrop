@@ -8,6 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import com.liquorbee.mobile.R
 import androidx.compose.ui.unit.sp
 
 // Store devices are used indoors under fixed lighting and the brand is a light-navy/blue theme
@@ -16,17 +19,49 @@ import androidx.compose.ui.unit.sp
 private val LiquorBeeLightColors = lightColorScheme(
     primary = LiquorBeeNavy,
     onPrimary = Color.White,
-    secondary = LiquorBeeBlue,
+    secondary = LbActive,
     onSecondary = Color.White,
-    background = LiquorBeeSurface,
-    surface = Color.White,
+    background = LbPage,
+    onBackground = LbText,
+    surface = LbPage,
+    onSurface = LbText,
+    onSurfaceVariant = LbMuted,
+    outline = LbBorder,
+    outlineVariant = LbBorder,
     error = LiquorBeeError
 )
 
-private val LiquorBeeTypography = Typography(
-    titleLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 22.sp),
+val InterFontFamily = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold)
+)
+
+private val BaseTypography = Typography(
+    titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp),
     titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
 )
+
+private val LiquorBeeTypography = BaseTypography.run {
+    copy(
+        displayLarge = displayLarge.copy(fontFamily = InterFontFamily),
+        displayMedium = displayMedium.copy(fontFamily = InterFontFamily),
+        displaySmall = displaySmall.copy(fontFamily = InterFontFamily),
+        headlineLarge = headlineLarge.copy(fontFamily = InterFontFamily),
+        headlineMedium = headlineMedium.copy(fontFamily = InterFontFamily),
+        headlineSmall = headlineSmall.copy(fontFamily = InterFontFamily),
+        titleLarge = titleLarge.copy(fontFamily = InterFontFamily),
+        titleMedium = titleMedium.copy(fontFamily = InterFontFamily),
+        titleSmall = titleSmall.copy(fontFamily = InterFontFamily),
+        bodyLarge = bodyLarge.copy(fontFamily = InterFontFamily),
+        bodyMedium = bodyMedium.copy(fontFamily = InterFontFamily),
+        bodySmall = bodySmall.copy(fontFamily = InterFontFamily),
+        labelLarge = labelLarge.copy(fontFamily = InterFontFamily),
+        labelMedium = labelMedium.copy(fontFamily = InterFontFamily),
+        labelSmall = labelSmall.copy(fontFamily = InterFontFamily)
+    )
+}
 
 @Composable
 fun LiquorBeeMobileTheme(content: @Composable () -> Unit) {

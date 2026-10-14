@@ -6,6 +6,12 @@ import com.liquorbee.mobile.core.network.ApiService
 import com.liquorbee.mobile.core.network.InventoryCategoryDto
 import com.liquorbee.mobile.core.network.LabelPrintingItemDto
 import com.liquorbee.mobile.core.network.PrintLabelRequestItem
+import com.liquorbee.mobile.core.network.QueuedLabelItemDto
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,10 +35,21 @@ data class LabelPrintingUiState(
     val appliedSearchFilter: String = "",
     val qtyOnHandOnly: Boolean = false,
     val selectedFilter: Int = 0,
+    val sizeFilter: Int? = null,
+    val activeCategoryIds: Set<String> = emptySet(),
+    val loadError: String? = null,
+    val categoryError: String? = null,
     val selectedItemCodes: Set<String> = emptySet(),
     val syncCatalog: Boolean = true,
     val printing: Boolean = false,
     val queueCount: Int = 0,
+    val queueOpen: Boolean = false,
+    val queueLoading: Boolean = false,
+    val queueItems: List<QueuedLabelItemDto> = emptyList(),
+    val queueError: String? = null,
+    val removingQueueId: Int? = null,
+    val queueRemoveError: String? = null,
+    val queuedSuccessfully: Boolean = false,
     val pricingByCardPrice: Boolean = false,
     val showCategoryDialog: Boolean = false,
     val categories: List<InventoryCategoryDto> = emptyList(),
@@ -64,6 +81,10 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
     private val _uiState = MutableStateFlow(LabelPrintingUiState())
     val uiState: StateFlow<LabelPrintingUiState> = _uiState.asStateFlow()
 
+    private var itemsJob: Job? = null
+    private var queueJob: Job? = null
+    private var requestId = 0
+
     private val searchEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
 
     init {
@@ -92,15 +113,46 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
     }
 
     fun loadItems() {
-        _uiState.value = _uiState.value.copy(loading = true)
-        viewModelScope.launch {
-            val items = runCatching { apiService.getAllItemsForPrinting(_uiState.value.selectedFilter) }
-                .getOrNull()
-                ?.takeIf { it.isSuccessful }
-                ?.body()
-                .orEmpty()
-            _uiState.value = _uiState.value.copy(items = items, loading = false, selectedItemCodes = emptySet())
+        itemsJob?.cancel()
+        val currentRequest = ++requestId
+        val filters = _uiState.value
+        _uiState.value = filters.copy(loading = true, loadError = null, items = emptyList(), selectedItemCodes = emptySet())
+        itemsJob = viewModelScope.launch {
+            try {
+                val results = coroutineScope {
+                    val requests = labelFilterCodes(filters.selectedFilter, filters.sizeFilter, filters.activeCategoryIds).map { code ->
+                        async {
+                            val response = apiService.getAllItemsForPrinting(code)
+                            if (!response.isSuccessful) error("Filter request failed")
+                            response.body() ?: error("No filter response")
+                        }
+                    }.toMutableList()
+                    if (filters.activeCategoryIds.isNotEmpty()) requests += async {
+                        val response = apiService.getItemsForPrintingByCategories(filters.activeCategoryIds.toList())
+                        if (!response.isSuccessful) error("Category request failed")
+                        response.body() ?: error("No category response")
+                    }
+                    requests.awaitAll()
+                }
+                if (currentRequest == requestId) _uiState.value = _uiState.value.copy(
+                    items = intersectLabelResults(results), loading = false)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                if (currentRequest == requestId) _uiState.value = _uiState.value.copy(loading = false,
+                    loadError = "Could not load items. Please try again.")
+            }
         }
+    }
+
+    fun applyFilters(list: Int, size: Int?, inStock: Boolean, categories: Set<String>) {
+        if (_uiState.value.printing) return
+        _uiState.value = _uiState.value.copy(selectedFilter = list, sizeFilter = size,
+            qtyOnHandOnly = inStock, activeCategoryIds = categories)
+        loadItems()
+    }
+
+    fun ensureCategories() {
+        if (_uiState.value.categories.isEmpty() && !_uiState.value.categoriesLoading) loadCategories()
     }
 
     fun onFilterSelected(filterCode: Int) {
@@ -138,18 +190,67 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
     }
 
     fun dismissMessage() {
-        _uiState.value = _uiState.value.copy(message = null)
+        _uiState.value = _uiState.value.copy(message = null, queuedSuccessfully = false)
+    }
+
+    fun openQueue() {
+        if (_uiState.value.removingQueueId != null) {
+            _uiState.value = _uiState.value.copy(queueOpen = true)
+            return
+        }
+        queueJob?.cancel()
+        _uiState.value = _uiState.value.copy(queueOpen = true, queueLoading = true, queueError = null)
+        queueJob = viewModelScope.launch {
+            try {
+                val response = apiService.getQueuedItems()
+                if (!response.isSuccessful) error("Queue unavailable")
+                val items = response.body() ?: error("Missing queue response")
+                _uiState.value = _uiState.value.copy(queueItems = items, queueLoading = false)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(queueLoading = false, queueError = "Could not load the print queue. Please try again.")
+            }
+        }
+    }
+
+    fun closeQueue() {
+        queueJob?.cancel()
+        _uiState.value = _uiState.value.copy(queueOpen = false, queueLoading = false)
+    }
+
+    fun removeQueuedItem(id: Int) {
+        if (_uiState.value.removingQueueId != null || _uiState.value.queueLoading) return
+        _uiState.value = _uiState.value.copy(removingQueueId = id, queueRemoveError = null)
+        viewModelScope.launch {
+            try {
+                val response = apiService.removeQueuedItem(id)
+                response.body()?.close()
+                if (!response.isSuccessful) error("Remove failed")
+                _uiState.value = _uiState.value.copy(
+                    queueItems = _uiState.value.queueItems.filterNot { it.id == id })
+                val count = apiService.getPrintQueueCount()
+                if (count.isSuccessful) count.body()?.let {
+                    _uiState.value = _uiState.value.copy(queueCount = it)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(queueRemoveError = "Could not update the queue. Refresh and try again.")
+            } finally {
+                _uiState.value = _uiState.value.copy(removingQueueId = null)
+            }
+        }
     }
 
     fun printSelected() {
         val state = _uiState.value
+        if (state.printing || state.loading || state.loadError != null) return
         val toPrint = state.items.filter { state.selectedItemCodes.contains(it.itemCode) }
         if (toPrint.isEmpty()) {
             _uiState.value = state.copy(message = "No items selected.")
             return
         }
 
-        _uiState.value = state.copy(printing = true)
+        _uiState.value = state.copy(printing = true, message = null, queuedSuccessfully = false)
         viewModelScope.launch {
             val payload = toPrint.map {
                 PrintLabelRequestItem(
@@ -167,7 +268,8 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
                     _uiState.value = _uiState.value.copy(
                         printing = false,
                         selectedItemCodes = emptySet(),
-                        message = "Successfully queued. Your label(s) will print soon."
+                        queuedSuccessfully = true,
+                        message = "Successfully queued. Your labels will print soon."
                     )
                     loadItems()
                 } else {
@@ -204,14 +306,14 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
     }
 
     private fun loadCategories() {
-        _uiState.value = _uiState.value.copy(categoriesLoading = true)
+        _uiState.value = _uiState.value.copy(categoriesLoading = true, categoryError = null)
         viewModelScope.launch {
-            val categories = runCatching { apiService.getInventoryCategories() }
-                .getOrNull()
-                ?.takeIf { it.isSuccessful }
-                ?.body()
-                .orEmpty()
-            _uiState.value = _uiState.value.copy(categories = categories, categoriesLoading = false)
+            try {
+                val response = apiService.getInventoryCategories()
+                if (!response.isSuccessful) error("Categories unavailable")
+                _uiState.value = _uiState.value.copy(categories = response.body().orEmpty(), categoriesLoading = false)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { _uiState.value = _uiState.value.copy(categoriesLoading = false, categoryError = "Could not load categories.") }
         }
     }
 
@@ -223,18 +325,9 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
     }
 
     fun loadItemsByCategory() {
-        val ids = _uiState.value.selectedCategoryIds.toList()
-        if (ids.isEmpty()) return
-
-        _uiState.value = _uiState.value.copy(loading = true, showCategoryDialog = false)
-        viewModelScope.launch {
-            val items = runCatching { apiService.getItemsForPrintingByCategories(ids) }
-                .getOrNull()
-                ?.takeIf { it.isSuccessful }
-                ?.body()
-                .orEmpty()
-            _uiState.value = _uiState.value.copy(items = items, loading = false, selectedItemCodes = emptySet())
-        }
+        val state = _uiState.value
+        _uiState.value = state.copy(showCategoryDialog = false)
+        applyFilters(state.selectedFilter, state.sizeFilter, state.qtyOnHandOnly, state.selectedCategoryIds)
     }
 
     // ---- Print queue polling ----

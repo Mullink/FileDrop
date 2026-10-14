@@ -12,7 +12,7 @@
          see Theme.LiquorBeeMobile.Splash below for the actual cross-version attrs used). -->
     <style name="Theme.LiquorBeeMobile.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/liquor_bee_navy</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_transparent</item>
         <item name="postSplashScreenTheme">@style/Theme.LiquorBeeMobile</item>
     </style>
 </resources>

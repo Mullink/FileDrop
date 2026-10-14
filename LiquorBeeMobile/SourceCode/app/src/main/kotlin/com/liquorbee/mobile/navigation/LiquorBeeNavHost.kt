@@ -1,6 +1,9 @@
 package com.liquorbee.mobile.navigation
 
 import android.app.Activity
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -90,7 +93,11 @@ fun LiquorBeeNavHost(app: LiquorBeeApplication) {
 
     NavHost(
         navController = navController,
-        startDestination = if (isLoggedIn) ROUTE_HOME else ROUTE_LOGIN
+        startDestination = if (isLoggedIn) ROUTE_HOME else ROUTE_LOGIN,
+        enterTransition = { fadeIn(tween(180)) },
+        exitTransition = { fadeOut(tween(180)) },
+        popEnterTransition = { fadeIn(tween(180)) },
+        popExitTransition = { fadeOut(tween(180)) }
     ) {
         composable(ROUTE_LOGIN) {
             val viewModel: LoginViewModel = viewModel(factory = factory)

@@ -85,7 +85,7 @@ fun InventoryReviewView(uiState: InventoryUiState, viewModel: InventoryViewModel
     }
 
     if (uiState.showFinalizeReviewConfirmDialog) {
-        AlertDialog(
+        AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White,
             onDismissRequest = viewModel::dismissFinalizeReviewConfirm,
             title = { Text("Finalize Changes") },
             text = { Text("This moves the session to Pending Submission. Inventory quantities will NOT change until you confirm completion afterward. Continue?") },

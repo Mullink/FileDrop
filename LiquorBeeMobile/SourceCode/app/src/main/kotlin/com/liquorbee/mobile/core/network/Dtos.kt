@@ -51,8 +51,17 @@ data class InventoryCategoryDto(
 )
 
 @Serializable
+data class QueuedLabelItemDto(
+    val id: Int = 0,
+    val itemCode: String? = null,
+    val itemName: String? = null,
+    val price: Double? = null
+)
+
+@Serializable
 data class LabelPrintingItemDto(
     val itemCode: String,
+    val caseSizeRatio: Double? = null,
     val itemName: String? = null,
     val upc: String? = null,
     val qtyOnHand: Int = 0,
@@ -210,6 +219,7 @@ data class SubmitInvoiceResponseDto(
 
 @Serializable
 data class PriceCheckItemDto(
+    val itemId: String? = null,
     val itemName: String? = null,
     val itemCode: String? = null,
     val barcode: String? = null,
@@ -226,3 +236,29 @@ data class PriceCheckItemDto(
     val discountEligible: Boolean? = null,
     val pricingByCardPrice: Boolean? = null
 )
+
+@Serializable
+data class PriceCheckEditDto(
+    val itemId: String,
+    val revision: String,
+    val name: String,
+    val upc: String,
+    val sku: String,
+    val price: Double,
+    val cost: Double,
+    val quantity: Int,
+    val vendorId: String,
+    val description: String = "",
+    val categoryId: String = "",
+    val status: Int = 1,
+    val trackInventory: Int = 1,
+    val cardPrice: Double? = null,
+    val msrp: Double? = null,
+    val discountEligible: Boolean? = null,
+    val categoryName: String = "",
+    val vendorName: String = "",
+    val hasMultipleStockRecords: Boolean = false
+)
+
+@Serializable
+data class PriceCheckVendorDto(val vendorId: String, val vendorName: String)

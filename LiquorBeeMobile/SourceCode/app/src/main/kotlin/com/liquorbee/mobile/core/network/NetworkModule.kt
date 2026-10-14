@@ -7,6 +7,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
+import java.io.IOException
 
 object NetworkModule {
 
@@ -35,6 +36,16 @@ object NetworkModule {
         val client = OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(tokenStore, onUnauthorized))
             .addInterceptor(logging)
+            .addInterceptor { chain ->
+                val response = chain.proceed(chain.request())
+                // Missing API routes can fall through to the website and return HTML with HTTP 200.
+                if (chain.request().url.encodedPath.startsWith("/Products/PriceCheckEdit") &&
+                    response.isSuccessful && response.body?.contentType()?.subtype?.contains("html", ignoreCase = true) == true) {
+                    response.close()
+                    throw IOException("Item editing is not available on this server yet. The Price Check backend update must be deployed.")
+                }
+                response
+            }
             // OkHttp's 10s default read timeout is too short for a few genuinely heavy endpoints -
             // creating a full-store ("entire store count") inventory session enumerates the whole
             // catalog server-side, which reliably took longer than 10s and surfaced as a client-side

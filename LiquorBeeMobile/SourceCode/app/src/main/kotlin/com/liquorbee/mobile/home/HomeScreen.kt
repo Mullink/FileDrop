@@ -2,9 +2,13 @@ package com.liquorbee.mobile.home
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,14 +25,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.InsertChart
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,11 +49,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,26 +69,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.liquorbee.mobile.R
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.liquorbee.mobile.core.network.DashboardSummaryDto
 import com.liquorbee.mobile.core.network.TopSellersDto
 import com.liquorbee.mobile.core.update.UpdateChecker
 import com.liquorbee.mobile.core.ui.LiquorBeeBlue
 import com.liquorbee.mobile.core.ui.LiquorBeeNavy
-import com.liquorbee.mobile.core.ui.LiquorBeeNavyLight
-import com.liquorbee.mobile.core.ui.LoginSplashOverlay
+import com.liquorbee.mobile.core.ui.LbPage
+import com.liquorbee.mobile.core.ui.LbBorder
+import com.liquorbee.mobile.core.ui.LbText
+import com.liquorbee.mobile.core.ui.LbMuted
+import com.liquorbee.mobile.core.ui.LbGood
 import java.text.NumberFormat
 import java.util.Locale
 
 private data class ToolItem(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val route: String, val accent: Color)
 
-private val GoldRank = Color(0xFFD4AF37)
-private val SilverRank = Color(0xFFA8A8B3)
-private val BronzeRank = Color(0xFFB08D57)
 private val PositiveGreen = Color(0xFF2ECC71)
 
 @Composable
@@ -82,25 +102,29 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var menuExpanded by remember { mutableStateOf(false) }
-    // Read once - viewModel.playLoginSplash itself never changes after construction, but this
-    // local copy is what actually gets flipped off once the animation finishes.
-    var showSplash by remember { mutableStateOf(viewModel.playLoginSplash) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
-                        Column {
-                            Text("Liquor Bee", fontWeight = FontWeight.Bold)
+                            Image(painterResource(R.drawable.liquorbee_nav_logo), contentDescription = "Liquor Bee",
+                                modifier = Modifier.height(48.dp))
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = LiquorBeeNavy,
+                        titleContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    ),
+                    actions = {
                             // Matches LiquorBeeInvoiceScannerAndroid's HomeActivity.textSyncStatus:
                             // green check when current, red warning when a newer build exists,
                             // tappable to force an immediate re-check either way.
                             val status = uiState.updateStatus
                             if (status != null) {
                                 val (label, color) = when (status) {
-                                    is UpdateChecker.Result.UpdateAvailable -> "⚠ Update available" to Color(0xFFC62828)
-                                    UpdateChecker.Result.UpToDate -> "✓ Up to date" to Color(0xFF2E7D32)
+                                    is UpdateChecker.Result.UpdateAvailable -> "⚠ Update available" to Color(0xFFFDBA74)
+                                    UpdateChecker.Result.UpToDate -> "✓ Up to date" to Color(0xFF86EFAC)
                                     UpdateChecker.Result.CheckFailed -> "" to Color.Transparent
                                 }
                                 if (label.isNotEmpty()) {
@@ -108,47 +132,40 @@ fun HomeScreen(
                                         label,
                                         color = color,
                                         style = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.clickable { viewModel.checkForUpdate(announce = true) }
+                                        maxLines = 1,
+                                        modifier = Modifier.clickable { viewModel.checkForUpdate(announce = true) }.padding(horizontal = 4.dp)
                                     )
                                 }
                             }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = LiquorBeeNavy,
-                        titleContentColor = LiquorBeeBlue,
-                        actionIconContentColor = Color.White
-                    ),
-                    actions = {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(Icons.Filled.AccountCircle, contentDescription = "Profile")
                         }
-                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                            // Store name is a non-interactive header row, not a nav link - "Log Out"
-                            // stays the only actionable item here per spec.
-                            uiState.storeName?.let { storeName ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            storeName,
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color.Gray
-                                        )
-                                    },
-                                    enabled = false,
-                                    onClick = {}
-                                )
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false },
+                            modifier = Modifier.width(280.dp).background(Color.White)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(Modifier.size(42.dp).background(LiquorBeeNavy, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Filled.Storefront, null, tint = Color(0xFF3BB2FF))
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("YOUR STORE", fontSize = 10.sp, color = LbMuted, fontWeight = FontWeight.Medium)
+                                    Text(uiState.storeName?.takeIf { it.isNotBlank() } ?: "My store",
+                                        fontSize = 18.sp, lineHeight = 23.sp, color = LbText, fontWeight = FontWeight.SemiBold)
+                                }
                             }
+                            HorizontalDivider(color = LbBorder, modifier = Modifier.padding(horizontal = 16.dp))
                             DropdownMenuItem(
-                                text = { Text("Check for Updates") },
+                                text = { Text("Check for Updates", fontSize = 14.sp, color = LbText) },
+                                leadingIcon = { Icon(Icons.Filled.SystemUpdate, null, tint = LiquorBeeNavy) },
                                 onClick = {
                                     menuExpanded = false
                                     viewModel.checkForUpdate(announce = true)
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Log Out") },
+                                text = { Text("Log Out", fontSize = 14.sp, color = Color(0xFFB42318)) },
+                                leadingIcon = { Icon(Icons.Filled.Logout, null, tint = Color(0xFFB42318)) },
                                 onClick = {
                                     menuExpanded = false
                                     viewModel.onLogout()
@@ -158,7 +175,7 @@ fun HomeScreen(
                     }
                 )
             },
-            containerColor = Color(0xFFF3F5FA)
+            containerColor = LbPage
         ) { padding ->
             LazyColumn(
                 modifier = Modifier
@@ -168,10 +185,6 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 item {
-                    Text("Tools", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = LiquorBeeNavy)
-                }
-
-                item {
                     val tools = buildList {
                         add(ToolItem("Label Printing", Icons.Filled.Print, "label-printing", Color(0xFF3BB2FF)))
                         add(ToolItem("Price Check", Icons.Filled.Sell, "price-check", Color(0xFF2ECC71)))
@@ -180,29 +193,27 @@ fun HomeScreen(
                             add(ToolItem("Scan Invoice", Icons.Filled.DocumentScanner, "scan-invoice-ocr", Color(0xFFB07CFF)))
                         }
                     }
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column {
-                            tools.forEach { tool ->
-                                ListItem(
-                                    headlineContent = { Text(tool.label, fontWeight = FontWeight.SemiBold) },
-                                    leadingContent = {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .background(tool.accent.copy(alpha = 0.15f), CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(tool.icon, contentDescription = null, tint = tool.accent)
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tools.chunked(2).forEach { row ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEach { tool ->
+                                    Card(
+                                        onClick = { onOpenTool(tool.route) },
+                                        modifier = Modifier.weight(1f).aspectRatio(1f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = CardDefaults.cardColors(containerColor = LiquorBeeNavy),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                    ) {
+                                        Column(Modifier.fillMaxSize().padding(12.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)) {
+                                            Icon(tool.icon, contentDescription = null, tint = Color(0xFF3BB2FF), modifier = Modifier.size(36.dp))
+                                            Text(tool.label, color = Color.White, fontWeight = FontWeight.SemiBold,
+                                                style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                                         }
-                                    },
-                                    trailingContent = { Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.LightGray) },
-                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                    modifier = Modifier.clickable { onOpenTool(tool.route) }
-                                )
+                                    }
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -221,18 +232,17 @@ fun HomeScreen(
             }
         }
 
-        if (showSplash) {
-            LoginSplashOverlay(onFinished = { showSplash = false })
-        }
-
         when (uiState.updateDialogResult) {
             is UpdateChecker.Result.UpdateAvailable -> {
                 AlertDialog(
                     onDismissRequest = { viewModel.dismissUpdateDialog(rememberDismissal = false) },
-                    title = { Text("Update Available") },
-                    text = { Text("A newer version of this app is available. Please download and install it.") },
+                    containerColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    icon = { UpdateStatusIcon(Icons.Filled.SystemUpdate, Color(0xFF3BB2FF)) },
+                    title = { Text("Update Available", fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = LbText) },
+                    text = { Text("A new version of Liquor Bee is ready. Download it to get the latest improvements.", color = LbMuted, textAlign = TextAlign.Center) },
                     confirmButton = {
-                        TextButton(onClick = {
+                        Button(shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = LiquorBeeNavy), onClick = {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.APK_DOWNLOAD_URL)))
                             viewModel.dismissUpdateDialog(rememberDismissal = false)
                         }) { Text("Download") }
@@ -246,27 +256,49 @@ fun HomeScreen(
                 )
             }
             UpdateChecker.Result.UpToDate -> {
-                AlertDialog(
-                    onDismissRequest = { viewModel.dismissUpdateDialog(rememberDismissal = false) },
-                    title = { Text("Up to Date") },
-                    text = { Text("You're running the latest version.") },
-                    confirmButton = {
-                        TextButton(onClick = { viewModel.dismissUpdateDialog(rememberDismissal = false) }) { Text("OK") }
+                val dismiss = { viewModel.dismissUpdateDialog(rememberDismissal = false) }
+                Dialog(onDismissRequest = dismiss) {
+                    Surface(color = Color.White, shape = RoundedCornerShape(12.dp)) {
+                        Box(Modifier.fillMaxWidth()) {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 32.dp, bottom = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                UpdateStatusIcon(Icons.Filled.CheckCircle, LbGood)
+                                Text("Up to Date", fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = LbText)
+                                Text("You’re running the latest version of Liquor Bee.", color = LbMuted, textAlign = TextAlign.Center)
+                                Button(shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = LiquorBeeNavy),
+                                    onClick = dismiss) { Text("Done") }
+                            }
+                            IconButton(onClick = dismiss, modifier = Modifier.align(Alignment.TopEnd)) {
+                                Icon(Icons.Filled.Close, contentDescription = "Close", tint = LbMuted)
+                            }
+                        }
                     }
-                )
+                }
             }
             UpdateChecker.Result.CheckFailed -> {
                 AlertDialog(
                     onDismissRequest = { viewModel.dismissUpdateDialog(rememberDismissal = false) },
-                    title = { Text("Couldn't Check") },
-                    text = { Text("Couldn't check for an update right now - check your connection and try again.") },
+                    containerColor = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    icon = { UpdateStatusIcon(Icons.Filled.CloudOff, Color(0xFFB42318)) },
+                    title = { Text("Couldn't Check", fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = LbText) },
+                    text = { Text("We couldn’t check for updates. Check your connection and try again.", color = LbMuted, textAlign = TextAlign.Center) },
                     confirmButton = {
-                        TextButton(onClick = { viewModel.dismissUpdateDialog(rememberDismissal = false) }) { Text("OK") }
+                        Button(shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = LiquorBeeNavy),
+                            onClick = { viewModel.dismissUpdateDialog(rememberDismissal = false) }) { Text("Done") }
                     }
                 )
             }
             null -> {}
         }
+    }
+}
+
+@Composable
+private fun UpdateStatusIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
+    Box(Modifier.size(56.dp).background(tint.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(30.dp))
     }
 }
 
@@ -277,34 +309,37 @@ private fun SalesDashboardCard(summary: DashboardSummaryDto?, loading: Boolean) 
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+        colors = CardDefaults.cardColors(containerColor = LiquorBeeNavy, contentColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
+        HomeCardHeader("Sales Dashboard", Icons.Filled.InsertChart)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Brush.linearGradient(listOf(LiquorBeeNavy, LiquorBeeNavyLight, LiquorBeeBlue)))
-                .padding(20.dp)
+                .padding(16.dp)
         ) {
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.InsertChart, contentDescription = null, tint = LiquorBeeBlue)
-                    Spacer(modifier = Modifier.padding(start = 8.dp))
-                    Text("Sales Dashboard", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-
                 when {
-                    loading -> CenteredBox { CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp), color = Color.White) }
-                    summary == null -> Text("No data available yet.", modifier = Modifier.padding(top = 12.dp), color = Color.White.copy(alpha = 0.7f))
+                    loading -> CenteredBox { CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp), color = Color(0xFF3BB2FF)) }
+                    summary == null -> Text("No data available yet.", modifier = Modifier.padding(top = 12.dp), color = Color(0xFFCBD5E1))
                     else -> {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Net Total Today", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            fmt(summary.netTotal),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.headlineMedium
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text("Net Total Today", color = Color(0xFFCBD5E1), style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center)
+                            Text(
+                                fmt(summary.netTotal),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.headlineMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -327,10 +362,10 @@ private fun SalesDashboardCard(summary: DashboardSummaryDto?, loading: Boolean) 
 private fun StatPill(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(6.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Text(label, color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall)
+        Text(label, color = Color(0xFFCBD5E1), style = MaterialTheme.typography.labelSmall)
         Text(value, color = Color.White, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -339,25 +374,17 @@ private fun StatPill(label: String, value: String, modifier: Modifier = Modifier
 private fun TopSellersCard(topSellers: TopSellersDto?, loading: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+        colors = CardDefaults.cardColors(containerColor = LiquorBeeNavy, contentColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
+        HomeCardHeader("Last Week Top Sellers", Icons.Filled.Leaderboard)
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(36.dp).background(Color(0xFFFFF3CD), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Leaderboard, contentDescription = null, tint = GoldRank)
-                }
-                Spacer(modifier = Modifier.padding(start = 10.dp))
-                Text("Last Week Top Sellers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = LiquorBeeNavy)
-            }
-
             when {
-                loading -> CenteredBox { CircularProgressIndicator(modifier = Modifier.padding(top = 12.dp)) }
+                loading -> CenteredBox { CircularProgressIndicator(modifier = Modifier.padding(top = 12.dp), color = Color(0xFF3BB2FF)) }
                 topSellers == null || topSellers.items.isEmpty() ->
-                    Text("No data available.", modifier = Modifier.padding(top = 12.dp), color = Color.Gray)
+                    Text("No data available.", modifier = Modifier.padding(top = 12.dp), color = Color(0xFFCBD5E1))
                 else -> {
                     Spacer(modifier = Modifier.height(10.dp))
                     topSellers.items.take(10).forEachIndexed { index, item ->
@@ -370,34 +397,42 @@ private fun TopSellersCard(topSellers: TopSellersDto?, loading: Boolean) {
 }
 
 @Composable
-private fun TopSellerRow(rank: Int, name: String, sold: Int) {
-    val rankColor = when (rank) {
-        1 -> GoldRank
-        2 -> SilverRank
-        3 -> BronzeRank
-        else -> LiquorBeeBlue
+private fun HomeCardHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(Modifier.fillMaxWidth().background(LiquorBeeNavy).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, contentDescription = null, tint = Color(0xFF3BB2FF), modifier = Modifier.size(28.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier.size(28.dp).background(rankColor, CircleShape),
-            contentAlignment = Alignment.Center
+    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+}
+
+@Composable
+private fun TopSellerRow(rank: Int, name: String, sold: Int) {
+    Column(Modifier.fillMaxWidth().padding(bottom = if (rank <= 3) 4.dp else 0.dp)) {
+        Row(
+            Modifier.fillMaxWidth()
+                .background(if (rank <= 3) Color.White.copy(alpha = 0.035f) else Color.Transparent, RoundedCornerShape(10.dp))
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("$rank", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            if (rank <= 3) {
+                Icon(Icons.Filled.MilitaryTech, contentDescription = "Rank $rank",
+                    tint = when (rank) { 1 -> Color(0xFFF5C542); 2 -> Color(0xFFC9D1DC); else -> Color(0xFFD08B4E) },
+                    modifier = Modifier.size(26.dp))
+            } else {
+                Box(Modifier.size(24.dp).border(1.dp, Color.White.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+                    Text("$rank", color = Color(0xFF94A3B8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(name, color = Color.White, modifier = Modifier.weight(1f),
+                fontSize = 12.5.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("$sold", color = Color(0xFF3BB2FF), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("sold", color = Color(0xFF94A3B8), fontSize = 11.5.sp)
+            }
         }
-        Spacer(modifier = Modifier.padding(start = 10.dp))
-        Text(name, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
-        Box(
-            modifier = Modifier
-                .background(PositiveGreen.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 10.dp, vertical = 4.dp)
-        ) {
-            Text("$sold sold", color = PositiveGreen, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
-        }
+        if (rank in 4..9) HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
     }
 }
 

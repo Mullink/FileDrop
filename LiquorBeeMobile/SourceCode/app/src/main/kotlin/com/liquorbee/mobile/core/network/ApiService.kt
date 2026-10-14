@@ -14,6 +14,23 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+    @GET("Products/PriceCheckEdit/Categories")
+    suspend fun getPriceCheckCategories(): Response<List<InventoryCategoryDto>>
+
+    @GET("Products/PriceCheckEdit/Lookup")
+    suspend fun lookupEditableItem(@Query("upc") upc: String): Response<List<PriceCheckItemDto>>
+
+    @GET("Products/PriceCheckEdit/Search")
+    suspend fun searchEditableItems(@Query("query") query: String): Response<List<PriceCheckItemDto>>
+
+    @GET("Products/PriceCheckEdit")
+    suspend fun getPriceCheckEdit(@Query("itemId") itemId: String): Response<PriceCheckEditDto>
+
+    @GET("Products/PriceCheckEdit/Vendors")
+    suspend fun getPriceCheckVendors(): Response<List<PriceCheckVendorDto>>
+
+    @POST("Products/PriceCheckEdit")
+    suspend fun savePriceCheckEdit(@Body item: PriceCheckEditDto): Response<PriceCheckEditDto>
 
     // GET (not POST) with a Basic-auth header, returning the raw JWT as plain text - matches the
     // web app's login/GetUserToken exactly (see LoginViewModel). Returned as ResponseBody rather
@@ -62,6 +79,12 @@ interface ApiService {
 
     @GET("Products/GetPrintQueueCount")
     suspend fun getPrintQueueCount(): Response<Int>
+
+    @GET("Products/GetQueuedItems")
+    suspend fun getQueuedItems(): Response<List<QueuedLabelItemDto>>
+
+    @retrofit2.http.DELETE("Products/ClearQueueItem/{id}")
+    suspend fun removeQueuedItem(@Path("id") id: Int): Response<ResponseBody>
 
     // Response<ResponseBody> rather than a typed/Unit body - we only need isSuccessful, and an
     // empty or non-JSON success body would otherwise trip up the kotlinx.serialization converter.

@@ -109,7 +109,7 @@ fun InventoryCaptureView(uiState: InventoryUiState, viewModel: InventoryViewMode
     }
 
     if (uiState.showSessionOptionsDialog) {
-        AlertDialog(
+        AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White,
             onDismissRequest = viewModel::dismissSessionOptions,
             title = { Text("Session Options") },
             text = {
@@ -131,7 +131,7 @@ fun InventoryCaptureView(uiState: InventoryUiState, viewModel: InventoryViewMode
     }
 
     if (uiState.showCancelConfirmDialog) {
-        AlertDialog(
+        AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White,
             onDismissRequest = viewModel::dismissCancelConfirm,
             title = { Text("Cancel Inventory Session") },
             text = { Text("Are you sure you want to cancel this inventory session? This cannot be undone.") },
@@ -141,7 +141,7 @@ fun InventoryCaptureView(uiState: InventoryUiState, viewModel: InventoryViewMode
     }
 
     if (uiState.showFinalizeConfirmDialog) {
-        AlertDialog(
+        AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White,
             onDismissRequest = viewModel::dismissFinalizeConfirm,
             title = { Text("Finalize Inventory Session") },
             text = { Text("This marks the session complete and updates your catalog quantities immediately. Continue?") },
@@ -151,7 +151,7 @@ fun InventoryCaptureView(uiState: InventoryUiState, viewModel: InventoryViewMode
     }
 
     if (uiState.showCreateNewItemDialog) {
-        AlertDialog(
+        AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White,
             onDismissRequest = viewModel::dismissCreateNewItemDialog,
             title = { Text("Create New Item") },
             text = {

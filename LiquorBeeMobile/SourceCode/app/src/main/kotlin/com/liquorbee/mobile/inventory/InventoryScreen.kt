@@ -1,5 +1,17 @@
 package com.liquorbee.mobile.inventory
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.ui.unit.sp
+import com.liquorbee.mobile.core.ui.LbBorder
+import com.liquorbee.mobile.core.ui.LbText
+import com.liquorbee.mobile.core.ui.LbMuted
+import com.liquorbee.mobile.core.ui.LbActive
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,7 +66,7 @@ fun InventoryScreen(viewModel: InventoryViewModel, onExit: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
 
     val title = when (uiState.view) {
-        InventoryView.SESSIONS -> "Inventory Sessions"
+        InventoryView.SESSIONS -> "Inventory Module"
         InventoryView.CATEGORY_SELECT -> "New Session"
         InventoryView.CATEGORY_ITEMS -> "Enter Counted Quantities"
         InventoryView.CAPTURE -> "Count Inventory"
@@ -96,12 +108,13 @@ fun InventoryScreen(viewModel: InventoryViewModel, onExit: () -> Unit) {
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = LiquorBeeNavy, titleContentColor = LiquorBeeBlue)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = LiquorBeeNavy, titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White, actionIconContentColor = Color.White)
             )
         },
         floatingActionButton = {
             if (uiState.view == InventoryView.SESSIONS) {
-                FloatingActionButton(onClick = viewModel::onNewSessionTapped) {
+                FloatingActionButton(onClick = viewModel::onNewSessionTapped, containerColor = LiquorBeeNavy, contentColor = Color.White, shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Filled.Add, contentDescription = "New Session")
                 }
             }
@@ -125,7 +138,7 @@ fun InventoryScreen(viewModel: InventoryViewModel, onExit: () -> Unit) {
     }
 
     if (uiState.showAddedByDialog) {
-        AlertDialog(
+        AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White,
             onDismissRequest = viewModel::dismissAddedByDialog,
             title = { Text("Who's counting?") },
             text = {
@@ -146,22 +159,35 @@ fun InventoryScreen(viewModel: InventoryViewModel, onExit: () -> Unit) {
 @Composable
 private fun SessionsListView(uiState: InventoryUiState, viewModel: InventoryViewModel) {
     if (uiState.sessionsLoading) {
-        Row(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) {
-            CircularProgressIndicator()
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(Modifier.size(24.dp), color = LbActive, strokeWidth = 2.dp)
+                Text("Loading sessions…", color = LbMuted, fontSize = 14.sp)
+            }
         }
         return
     }
 
-    if (uiState.sessions.isEmpty()) {
-        Text(
-            "No inventory sessions yet. Tap + to start one.",
-            modifier = Modifier.padding(24.dp),
-            color = Color.Gray
-        )
-        return
-    }
-
-    LazyColumn(contentPadding = PaddingValues(12.dp)) {
+    LazyColumn(modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Inventory sessions", Modifier.weight(1f), color = LiquorBeeNavy,
+                    fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("${uiState.sessions.size} total", color = LbMuted, fontSize = 12.sp)
+            }
+        }
+        if (uiState.sessions.isEmpty()) item {
+            Surface(color = Color.White, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, LbBorder)) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(Icons.Default.Inventory2, null, tint = LbActive, modifier = Modifier.size(32.dp))
+                    Text("No sessions yet", color = LbText, fontWeight = FontWeight.SemiBold)
+                    Text("Tap + to start your first inventory count.", color = LbMuted, fontSize = 13.sp)
+                }
+            }
+        }
         items(uiState.sessions, key = { it.sessionId }) { session ->
             SessionCard(session = session, onClick = { viewModel.openSession(session) })
         }
@@ -174,34 +200,27 @@ private val OPENABLE_STATUSES = setOf("IN PROGRESS", "UNDER REVIEW", "COMPLETED"
 private fun SessionCard(session: InventorySessionHeaderDto, onClick: () -> Unit) {
     val actionable = session.status in OPENABLE_STATUSES
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clickable(enabled = actionable, onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clickable(enabled = actionable, onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, LbBorder)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    session.sessionName?.takeIf { it.isNotBlank() } ?: "Session #${session.sessionId}",
-                    fontWeight = FontWeight.Bold
-                )
-                StatusBadge(session.status.orEmpty())
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(color = Color(0xFFEFF6FF), shape = RoundedCornerShape(8.dp)) {
+                    Icon(Icons.Default.Inventory2, null, tint = LbActive, modifier = Modifier.padding(9.dp).size(20.dp))
+                }
+                Text(session.sessionName?.takeIf { it.isNotBlank() } ?: "Session #${session.sessionId}",
+                    modifier = Modifier.weight(1f), color = LiquorBeeNavy, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                if (actionable) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = LbMuted, modifier = Modifier.size(20.dp))
             }
-            Text(
-                "${if (session.isCategorySession) "Category count" else "Full count"} • ${session.itemCountBefore} items",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodySmall
-            )
+            StatusBadge(session.status.orEmpty())
+            Text("${if (session.isCategorySession) "Category count" else "Full count"} • ${session.itemCountBefore} items",
+                color = LbMuted, fontSize = 13.sp)
             session.createdBy?.takeIf { it.isNotBlank() }?.let {
-                Text("By $it", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                Text("By $it", color = LbMuted, fontSize = 12.sp)
             }
-            if (!actionable) {
-                Text(
-                    "This session is ${session.status?.lowercase()} - view on desktop",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            if (!actionable) Text("This session is ${session.status?.lowercase()} — view on desktop",
+                color = LbMuted, fontSize = 12.sp)
         }
     }
 }
@@ -209,14 +228,15 @@ private fun SessionCard(session: InventorySessionHeaderDto, onClick: () -> Unit)
 @Composable
 private fun StatusBadge(status: String) {
     val color = when (status) {
-        "IN PROGRESS" -> LiquorBeeBlue
-        "UNDER REVIEW" -> Color(0xFFFFA000)
-        "COMPLETED" -> Color(0xFF2E7D32)
-        "CANCELLED" -> Color.Gray
-        else -> LiquorBeeNavy
+        "IN PROGRESS" -> LbActive
+        "UNDER REVIEW", "PENDING SUBMISSION" -> Color(0xFF946200)
+        "COMPLETED" -> Color(0xFF18794E)
+        else -> LbMuted
     }
-    Surface(color = color, shape = MaterialTheme.shapes.small) {
-        Text(status, color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+    Surface(color = color.copy(alpha = 0.09f), shape = RoundedCornerShape(4.dp)) {
+        Text(status.lowercase().replaceFirstChar { it.uppercase() }, color = color,
+            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
     }
 }
 
