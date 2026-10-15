@@ -154,9 +154,7 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
             SectionCard("Category") {
                 PopupPicker("Category", draft.categoryId,
                     state.categories.map { it.categoryId to it.name.orEmpty() }, item.categoryName,
-                    state.saving || state.categoriesLoading) { draft = draft.copy(categoryId = it) }
-                if (state.categoriesLoading) Text("Checking active categories…", color = LbMuted, fontSize = 12.sp)
-                state.categoryWarning?.let { Text(it, color = LbMuted, fontSize = 12.sp) }
+                    state.saving) { draft = draft.copy(categoryId = it) }
             }
             SectionCard("Pricing") {
                 FieldPair(
