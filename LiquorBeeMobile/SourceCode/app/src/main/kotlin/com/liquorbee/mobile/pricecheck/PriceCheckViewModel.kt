@@ -16,6 +16,8 @@ data class PriceCheckUiState(
     val editorItem: PriceCheckEditDto? = null,
     val vendors: List<PriceCheckVendorDto> = emptyList(),
     val categories: List<InventoryCategoryDto> = emptyList(),
+    val categoryWarning: String? = null,
+    val categoriesLoading: Boolean = false,
     val editorError: String? = null,
     val saving: Boolean = false,
     val saveMessage: String? = null,
@@ -49,20 +51,29 @@ class PriceCheckViewModel(private val apiService: ApiService) : ViewModel() {
         if (!response.isSuccessful) error("Could not load categories. Please try again.")
         val categories = response.body() ?: error("No categories returned.")
         val limit = Semaphore(4)
-        val active = coroutineScope {
+        val checked = coroutineScope {
             categories.distinctBy { it.categoryId }.map { category -> async {
                 limit.withPermit {
+                    try {
                     // Categories are Quantic items; their item ID is exposed as categoryId.
                     val details = apiService.getPriceCheckEdit(category.categoryId)
                     if (!details.isSuccessful) error("Could not check category status. Please try again.")
                     val item = details.body() ?: error("No category details returned.")
                     if (item.itemId != category.categoryId) error("Category details did not match.")
-                    category.takeIf { item.status == 1 }
+                    category to item.status
+                    } catch (e: CancellationException) { throw e }
+                    catch (_: Exception) { category to null }
                 }
-            } }.awaitAll().filterNotNull()
+            } }.awaitAll()
         }
-        activeCategoriesCache = active
-        categoriesCheckedAt = android.os.SystemClock.elapsedRealtime()
+        val active = checked.filter { it.second == 1 }.map { it.first }
+        val unavailable = checked.count { it.second == null }
+        _uiState.value = _uiState.value.copy(categoryWarning = if (unavailable > 0)
+            "$unavailable categories could not be checked and are hidden. Reload to try again." else null)
+        if (unavailable == 0) {
+            activeCategoriesCache = active
+            categoriesCheckedAt = android.os.SystemClock.elapsedRealtime()
+        }
         return active
     }
 
@@ -165,14 +176,22 @@ class PriceCheckViewModel(private val apiService: ApiService) : ViewModel() {
                 coroutineScope {
                     val itemResponse = async { apiService.getPriceCheckEdit(id) }
                     val vendorResponse = async { apiService.getPriceCheckVendors() }
-                    val categoryResponse = async { activeCategories() }
                     val editable = itemResponse.await()
                     val vendors = vendorResponse.await()
-                    val categories = categoryResponse.await()
                     if (!editable.isSuccessful || !vendors.isSuccessful)
                         error("Could not load item details. Please try again.")
                     _uiState.value = _uiState.value.copy(editorItem = editable.body() ?: error("No item details returned."),
-                        vendors = vendors.body().orEmpty(), categories = categories)
+                        vendors = vendors.body().orEmpty(), editorLoading = false,
+                        categories = emptyList(), categoriesLoading = true, categoryWarning = null)
+                    try {
+                        val categories = activeCategories()
+                        _uiState.value = _uiState.value.copy(categories = categories)
+                    } catch (e: CancellationException) { throw e }
+                    catch (_: Exception) {
+                        _uiState.value = _uiState.value.copy(categoryWarning = "Could not check categories. Reload to try again.")
+                    } finally {
+                        _uiState.value = _uiState.value.copy(categoriesLoading = false)
+                    }
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _uiState.value = _uiState.value.copy(editorError = e.message ?: "Could not load item.") }
