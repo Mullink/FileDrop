@@ -40,4 +40,25 @@ class PriceCheckDraftTest {
         assertEquals("20", draft.margin)
         assertEquals("12.50", draft.withPercent("20", true).price)
     }
+    @Test fun adjustmentUsesCurrentDraftAndRequiresNormalSave() {
+        val original = PriceCheckDraft.from(item)
+        val edited = original.copy(quantity = "10")
+        val added = edited.copy(quantity = adjustedQuantity(edited.quantity, "4", false)!!)
+        val subtracted = added.copy(quantity = adjustedQuantity(added.quantity, "6", true)!!)
+        assertEquals("3", original.quantity)
+        assertEquals("14", added.quantity)
+        assertEquals("8", subtracted.quantity)
+        assertTrue(subtracted.isDirty(item))
+        assertEquals(8, subtracted.request(item).quantity)
+    }
+    @Test fun quantityAdjustmentRejectsInvalidAmountsAndOverflow() {
+        for (amount in listOf("", "0", "-2", "1.5", "abc", "2147483648")) {
+            assertNull(adjustedQuantity("10", amount, false))
+        }
+        assertNull(adjustedQuantity("", "2", false))
+        assertNull(adjustedQuantity("2147483647", "1", false))
+        assertNull(adjustedQuantity("-2147483648", "1", true))
+        assertEquals("0", adjustedQuantity("2", "2", true))
+        assertEquals("-1", adjustedQuantity("2", "3", true))
+    }
 }

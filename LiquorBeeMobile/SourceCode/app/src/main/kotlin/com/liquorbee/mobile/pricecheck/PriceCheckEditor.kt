@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -87,6 +89,7 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
     }
     var pending by remember { mutableStateOf<(() -> Unit)?>(null) }
     var validation by remember(item.revision) { mutableStateOf<String?>(null) }
+    var showQuantityAdjustment by rememberSaveable(item.itemId, item.revision) { mutableStateOf(false) }
     val scroll = rememberScrollState()
     val focus = LocalFocusManager.current
     val money = remember { NumberFormat.getCurrencyInstance(Locale.US) }
@@ -148,7 +151,16 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
                 }
             }
             SectionCard("Quantity on Hand") {
-                EditField("Quantity on hand", draft.quantity, state.saving || item.hasMultipleStockRecords, KeyboardType.Number, showLabel = false) { draft = draft.copy(quantity = it) }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedIconButton(onClick = { focus.clearFocus(); showQuantityAdjustment = true },
+                        enabled = !state.saving && !item.hasMultipleStockRecords,
+                        modifier = Modifier.size(48.dp).semantics { contentDescription = "Add or subtract quantity" },
+                        shape = RoundedCornerShape(6.dp)) {
+                        Text("±", fontSize = 26.sp, fontWeight = FontWeight.Medium)
+                    }
+                    EditField("Quantity on hand", draft.quantity, state.saving || item.hasMultipleStockRecords,
+                        KeyboardType.Number, Modifier.weight(1f), showLabel = false) { draft = draft.copy(quantity = it) }
+                }
                 if (item.hasMultipleStockRecords) Text("This item has multiple vendor stock records. Update quantity, cost and vendor in POS.", color = LbMuted, fontSize = 12.sp)
             }
             SectionCard("Category") {
@@ -198,12 +210,59 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
         }
         }
     }
+    if (showQuantityAdjustment && !state.saving && !item.hasMultipleStockRecords) {
+        QuantityAdjustmentDialog(current = draft.quantity, onDismiss = { showQuantityAdjustment = false },
+            onApply = { quantity ->
+                draft = draft.copy(quantity = quantity)
+                validation = null
+                showQuantityAdjustment = false
+            })
+    }
     pending?.let { action ->
         AlertDialog(containerColor = androidx.compose.ui.graphics.Color.White, onDismissRequest = { pending = null }, title = { Text("Discard unsaved changes?") },
             text = { Text("Your item changes have not been saved.") },
             confirmButton = { TextButton(onClick = { pending = null; action() }) { Text("Discard changes") } },
             dismissButton = { TextButton(onClick = { pending = null }) { Text("Keep editing") } })
     }
+}
+
+@Composable
+private fun QuantityAdjustmentDialog(current: String, onDismiss: () -> Unit, onApply: (String) -> Unit) {
+    var amount by rememberSaveable { mutableStateOf("") }
+    var subtract by rememberSaveable { mutableStateOf(false) }
+    val result = adjustedQuantity(current, amount, subtract)
+    val error = when {
+        current.toIntOrNull() == null -> "Enter a valid quantity on hand before adjusting it."
+        amount.isBlank() -> null
+        amount.toIntOrNull()?.let { it > 0 } != true -> "Enter a positive whole number."
+        result == null -> "The resulting quantity is outside the supported range."
+        else -> null
+    }
+    AlertDialog(onDismissRequest = onDismiss, containerColor = Color.White, shape = RoundedCornerShape(8.dp),
+        title = { Text("Adjust quantity on hand", color = LbText, fontSize = 18.sp) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Current quantity: $current", color = LbMuted)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FilterChip(selected = !subtract, onClick = { subtract = false }, label = { Text("Add") },
+                        leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(18.dp)) })
+                    FilterChip(selected = subtract, onClick = { subtract = true }, label = { Text("Subtract") },
+                        leadingIcon = { Icon(Icons.Default.Remove, null, Modifier.size(18.dp)) })
+                }
+                OutlinedTextField(value = amount, onValueChange = { amount = it },
+                    label = { Text(if (subtract) "Quantity to subtract" else "Quantity to add") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true, isError = error != null, modifier = Modifier.fillMaxWidth())
+                error?.let { Text(it, color = LbBad, fontSize = 12.sp) }
+                result?.let {
+                    Text("New quantity: $it", color = LbText, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
+                Text("Apply updates the quantity field. Tap Save to save your changes.", color = LbMuted, fontSize = 12.sp)
+            }
+        },
+        confirmButton = { TextButton(onClick = { result?.let(onApply) }, enabled = result != null) { Text("Apply") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }
 
 @Composable

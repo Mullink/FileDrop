@@ -4,6 +4,13 @@ import com.liquorbee.mobile.core.network.PriceCheckEditDto
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+internal fun adjustedQuantity(current: String, amount: String, subtract: Boolean): String? {
+    val quantity = current.toIntOrNull() ?: return null
+    val change = amount.toIntOrNull()?.takeIf { it > 0 } ?: return null
+    val result = quantity.toLong() + if (subtract) -change.toLong() else change.toLong()
+    return result.takeIf { it in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() }?.toString()
+}
+
 internal fun priceFromPercentage(cost: String, percent: String, margin: Boolean): String? {
     val c = cost.toBigDecimalOrNull()?.takeIf { it > BigDecimal.ZERO } ?: return null
     val p = percent.toBigDecimalOrNull() ?: return null
