@@ -2,6 +2,7 @@ package com.liquorbee.invoicescanner.capture
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import com.liquorbee.invoicescanner.imaging.ImageOrientation
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -39,9 +40,12 @@ class FilePickerCaptureSource(private val activity: ComponentActivity) : PageCap
             return@registerForActivityResult
         }
 
-        val bitmap: Bitmap? = activity.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream)
-        }
+        val bitmap: Bitmap? = try {
+            val decoded = activity.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            if (decoded == null) null else activity.contentResolver.openInputStream(uri)?.use {
+                ImageOrientation.upright(decoded, it)
+            } ?: decoded
+        } catch (_: Exception) { null }
         if (bitmap == null) {
             continuation?.invoke(CaptureResult.Failure("Could not read the selected image."))
         } else {

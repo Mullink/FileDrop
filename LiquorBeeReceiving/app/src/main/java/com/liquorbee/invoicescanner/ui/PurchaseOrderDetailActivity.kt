@@ -3,6 +3,9 @@ package com.liquorbee.invoicescanner.ui
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.content.Intent
+import com.liquorbee.invoicescanner.network.requireSuccess
+import com.liquorbee.invoicescanner.network.apiError
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -51,10 +54,22 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     // web's removeLine()/saveChanges() split exactly (see pos-purchase-orders.ts).
     private val pendingRemovedLineIds = mutableListOf<Long>()
 
+    private var isScanned = false
+    private var scanReady = false
+    private var returningFromReview = false
+    private fun openScanReview() {
+        if (hasUnsavedChanges()) { showMessage("Save your current changes before reviewing the scan.", true); return }
+        returningFromReview = true
+        startActivity(Intent(this, ScanOrderReviewActivity::class.java).putExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, invoiceId))
+    }
+    override fun onResume() {
+        super.onResume()
+        if (returningFromReview) { returningFromReview = false; load() }
+    }
     private var saving = false
     private var receiving = false
 
-    private data class LineSnapshot(val shippedCases: Int?, val shippedUnits: Int?, val currentUnitPrice: Double?)
+    private data class LineSnapshot(val shippedCases: Int?, val shippedUnits: Int?, val currentUnitPrice: Double?, val unitCost: Double?, val caseCost: Double?)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +82,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         invoiceId = intent.getLongExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, 0)
 
         binding.recyclerLines.layoutManager = LinearLayoutManager(this)
+        binding.buttonReviewScan.setOnClickListener { openScanReview() }
         binding.buttonSave.setOnClickListener { saveChanges() }
         binding.buttonReceive.setOnClickListener { confirmReceive() }
         binding.buttonSaveCheckNumber.setOnClickListener { saveCheckNumber() }
@@ -215,7 +231,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                 showMessage("Item added.", isError = false)
                 load()
             } catch (e: Exception) {
-                showMessage("Failed to add item: ${e.message}", isError = true)
+                showMessage("Failed to add item: ${apiError(e)}", isError = true)
             }
         }
     }
@@ -236,16 +252,30 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                 lines = api.getStagedPurchaseOrderDetails(invoiceId).toMutableList()
                 pendingRemovedLineIds.clear()
 
-                originalLineSnapshots = lines.associate { it.lineId to LineSnapshot(it.shippedCases, it.shippedUnits, it.currentUnitPrice) }
+                originalLineSnapshots = lines.associate { it.lineId to LineSnapshot(it.shippedCases, it.shippedUnits, it.currentUnitPrice, it.unitCost, it.caseCost) }
 
                 val h = header
                 binding.editCheckNumber.setText(h?.checkNumber ?: "")
 
+                isScanned = !h?.ocrBatchId.isNullOrBlank() || intent.getBooleanExtra("scannedInvoice", false)
+                scanReady = false
+                binding.scanReviewPanel.visibility = if(isScanned) View.VISIBLE else View.GONE
+                if(isScanned) {
+                    try {
+                        val review = api.getOrderCorrections(invoiceId)
+                        val count = review.lines.count { it.needsReview }
+                        scanReady = review.isEditable && count == 0 && review.reconciliation.isBalanced
+                        binding.textScanReview.text = if(scanReady) "Scan checked. Save retail price changes, then receive." else "$count item(s) need review. Check scanned values and invoice totals before receiving."
+                    } catch(e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch(e: Exception) { binding.textScanReview.text = "Scan review could not load: " + apiError(e) }
+                }
                 val readOnly = h?.status != "STAGED"
                 lineAdapter = PurchaseOrderLineAdapter(
                     lines,
                     readOnly = readOnly,
-                    onChanged = { refreshButtonStates() },
+                    scanned = isScanned,
+                    onReview = { openScanReview() },
+                    onChanged = { updateActualTotal(); refreshButtonStates() },
                     onRemoved = { position ->
                         pendingRemovedLineIds.add(lines[position].lineId)
                         lines.removeAt(position)
@@ -264,7 +294,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 binding.progressLoading.visibility = View.GONE
                 binding.textLoadError.visibility = View.VISIBLE
-                binding.textLoadError.text = "Failed to load this order: ${e.message}"
+                binding.textLoadError.text = "Failed to load this order: ${apiError(e)}"
             }
         }
     }
@@ -324,7 +354,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     private fun hasUnsavedChanges(): Boolean = pendingRemovedLineIds.isNotEmpty() || lines.any { line ->
         val original = originalLineSnapshots[line.lineId] ?: return@any false
         original.shippedCases != line.shippedCases || original.shippedUnits != line.shippedUnits ||
-            original.currentUnitPrice != line.currentUnitPrice
+            original.currentUnitPrice != line.currentUnitPrice || original.unitCost != line.unitCost || original.caseCost != line.caseCost
     }
 
     private fun hasNegativeReceiveQuantities(): Boolean = lines.any {
@@ -336,7 +366,8 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         val isStaged = h?.status == "STAGED"
         binding.buttonSave.isEnabled = isStaged && !saving && !receiving
         // Matches the web exactly: Receive is blocked while there are unsaved edits - save first.
-        binding.buttonReceive.isEnabled = isStaged && !saving && !receiving && !hasUnsavedChanges()
+        binding.buttonReceive.isEnabled = isStaged && !saving && !receiving && !hasUnsavedChanges() && (!isScanned || scanReady)
+        binding.buttonReviewScan.isEnabled = !saving && !receiving && !hasUnsavedChanges()
         binding.buttonAddItem.visibility = if (isStaged) View.VISIBLE else View.GONE
         if (!isStaged) binding.addItemContainer.visibility = View.GONE
     }
@@ -360,23 +391,26 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                 // Lines removed on-screen were only hidden/excluded from the total up to this
                 // point - their actual RemoveInvoiceLine deletes go out first, matching the web's
                 // saveChanges() (pos-purchase-orders.ts).
-                for (lineId in pendingRemovedLineIds) {
-                    api.removeInvoiceLine(lineId)
+                for (lineId in pendingRemovedLineIds.toList()) {
+                    api.removeInvoiceLine(lineId).requireSuccess()
+                    pendingRemovedLineIds.remove(lineId)
                 }
                 pendingRemovedLineIds.clear()
-                api.updateStagedPurchaseOrderDetails(lines)
+                val changed = if(isScanned) lines.filter { originalLineSnapshots[it.lineId]?.currentUnitPrice != it.currentUnitPrice } else lines
+                if(changed.isNotEmpty()) api.updateStagedPurchaseOrderDetails(changed).requireSuccess()
                 saving = false
                 showMessage("Changes saved.", isError = false)
                 load()
             } catch (e: Exception) {
                 saving = false
                 refreshButtonStates()
-                showMessage("Failed to save changes: ${e.message}", isError = true)
+                showMessage("Failed to save changes: ${apiError(e)}", isError = true)
             }
         }
     }
 
     private fun confirmReceive() {
+        if (hasUnsavedChanges() || (isScanned && !scanReady)) { showMessage("Save changes and finish scan review before receiving.", true); return }
         AlertDialog.Builder(this)
             .setTitle("Receive Order")
             .setMessage("Mark this order as received? This updates on-hand quantities from the shipped cases/units above.")
@@ -396,14 +430,14 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
                 // printLabel hard-coded false - no native label-printer integration yet.
-                api.receiveOrder(invoiceId, false)
+                api.receiveOrder(invoiceId, false).requireSuccess()
                 receiving = false
                 showMessage("Order received.", isError = false)
                 load()
             } catch (e: Exception) {
                 receiving = false
                 refreshButtonStates()
-                showMessage("Failed to receive this order: ${e.message}", isError = true)
+                showMessage("Failed to receive this order: ${apiError(e)}", isError = true)
             }
         }
     }
@@ -413,10 +447,10 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                api.updateInvoiceCheckNumber(invoiceId, checkNumber)
+                api.updateInvoiceCheckNumber(invoiceId, checkNumber).requireSuccess()
                 Toast.makeText(this@PurchaseOrderDetailActivity, "Check number saved.", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Toast.makeText(this@PurchaseOrderDetailActivity, "Failed to save check number: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@PurchaseOrderDetailActivity, "Failed to save check number: ${apiError(e)}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -451,11 +485,11 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                api.updateStagedPurchaseOrderStatus(invoiceId, status)
+                api.updateStagedPurchaseOrderStatus(invoiceId, status).requireSuccess()
                 showMessage("Order status updated.", isError = false)
                 load()
             } catch (e: Exception) {
-                showMessage("Failed to update this order's status: ${e.message}", isError = true)
+                showMessage("Failed to update this order's status: ${apiError(e)}", isError = true)
             }
         }
     }

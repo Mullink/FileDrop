@@ -1,6 +1,9 @@
 package com.liquorbee.invoicescanner.ui
 
 import android.os.Bundle
+import android.content.Intent
+import com.liquorbee.invoicescanner.network.requireSuccess
+import com.liquorbee.invoicescanner.network.apiError
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -64,7 +67,7 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
 
         binding.recyclerLines.layoutManager = LinearLayoutManager(this)
         binding.buttonSave.setOnClickListener { saveChanges() }
-        binding.buttonPush.setOnClickListener { pushToPurchaseOrders() }
+        binding.buttonPush.setOnClickListener { header?.legacyInvoiceId?.let { openPurchaseOrder(it) } ?: pushToPurchaseOrders() }
         binding.buttonRepriceBaseCost.setOnClickListener { repriceInvoice("DiscountReprice") }
         binding.buttonRepriceTrueCost.setOnClickListener { repriceInvoice("TrueCostReprice") }
         binding.buttonAddItem.setOnClickListener {
@@ -215,7 +218,7 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
                 showMessage("Item added.", isError = false)
                 load()
             } catch (e: Exception) {
-                showMessage("Failed to add item: ${e.message}", isError = true)
+                showMessage("Failed to add item: ${apiError(e)}", isError = true)
             }
         }
     }
@@ -253,7 +256,7 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 binding.progressLoading.visibility = View.GONE
                 binding.textLoadError.visibility = View.VISIBLE
-                binding.textLoadError.text = "Failed to load this invoice: ${e.message}"
+                binding.textLoadError.text = "Failed to load this invoice: ${apiError(e)}"
             }
         }
     }
@@ -291,8 +294,8 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
         val h = header ?: return
         val unsaved = hasUnsavedChanges()
         binding.buttonSave.isEnabled = unsaved && !saving && h.legacyInvoiceId == null
-        binding.buttonPush.isEnabled = canPushToPurchaseOrders()
-        binding.buttonPush.text = if (h.legacyInvoiceId != null) "Already in Purchase Orders" else "Stage to PO"
+        binding.buttonPush.isEnabled = h.legacyInvoiceId != null || canPushToPurchaseOrders()
+        binding.buttonPush.text = if (h.legacyInvoiceId != null) "Review purchase order" else "Stage to PO"
         binding.buttonRepriceBaseCost.isEnabled = canRecalculate()
         binding.buttonRepriceTrueCost.isEnabled = canRecalculate()
         // Adding a line to an already-pushed invoice would silently desync it from the real
@@ -335,32 +338,36 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                api.updateStagedLineItems(invoiceHeaderId, request)
+                api.updateStagedLineItems(invoiceHeaderId, request).requireSuccess()
                 saving = false
                 showMessage("Changes saved. Pricing has been recalculated.", isError = false)
                 load()
             } catch (e: Exception) {
                 saving = false
                 refreshButtonStates()
-                showMessage("Failed to save changes: ${e.message}", isError = true)
+                showMessage("Failed to save changes: ${apiError(e)}", isError = true)
             }
         }
     }
 
+    private fun openPurchaseOrder(id: Long) {
+        startActivity(Intent(this, PurchaseOrderDetailActivity::class.java).putExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, id).putExtra("scannedInvoice", true))
+    }
     private fun pushToPurchaseOrders() {
         pushing = true
         refreshButtonStates()
         lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                api.pushToPurchaseOrders(invoiceHeaderId)
+                val result = api.pushToPurchaseOrders(invoiceHeaderId)
+                openPurchaseOrder(result.legacyInvoiceId)
                 pushing = false
                 showMessage("Staged to Purchase Orders.", isError = false)
                 load()
             } catch (e: Exception) {
                 pushing = false
                 refreshButtonStates()
-                showMessage("Failed to stage this invoice to Purchase Orders: ${e.message}", isError = true)
+                showMessage("Failed to stage this invoice to Purchase Orders: ${apiError(e)}", isError = true)
             }
         }
     }
@@ -371,7 +378,7 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
-                api.repriceInvoice(invoiceHeaderId, mode)
+                api.repriceInvoice(invoiceHeaderId, mode).requireSuccess()
                 repricing = false
                 showMessage(
                     if (mode == "DiscountReprice")
@@ -384,7 +391,7 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 repricing = false
                 refreshButtonStates()
-                showMessage("Failed to reprice this invoice: ${e.message}", isError = true)
+                showMessage("Failed to reprice this invoice: ${apiError(e)}", isError = true)
             }
         }
     }

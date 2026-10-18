@@ -3,6 +3,7 @@ package com.liquorbee.invoicescanner.capture
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import com.liquorbee.invoicescanner.imaging.ImageOrientation
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,7 +44,11 @@ class CameraCaptureSource(private val activity: ComponentActivity) : PageCapture
             return@registerForActivityResult
         }
 
-        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+        val bitmap = try {
+            BitmapFactory.decodeFile(file.absolutePath)?.let { decoded ->
+                file.inputStream().use { ImageOrientation.upright(decoded, it) }
+            }
+        } catch (_: Exception) { null }
         if (bitmap == null) {
             continuation?.invoke(CaptureResult.Failure("Camera returned no usable image."))
         } else {

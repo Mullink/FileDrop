@@ -156,4 +156,5 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+<Button android:id="@+id/buttonReviewScan" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Correct scanned values / item match" android:textAllCaps="false" android:visibility="gone" />
 </LinearLayout>

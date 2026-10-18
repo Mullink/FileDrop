@@ -43,6 +43,10 @@
             android:layout_marginStart="8dp" />
     </LinearLayout>
 
+    <LinearLayout android:id="@+id/scanReviewPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp" android:visibility="gone" android:background="#FFF3E0">
+        <TextView android:id="@+id/textScanReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#713F12" />
+        <Button android:id="@+id/buttonReviewScan" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Review scanned invoice" android:textAllCaps="false" />
+    </LinearLayout>
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content">

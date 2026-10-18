@@ -192,7 +192,8 @@ data class PurchaseOrderHeaderDto(
     val receivedDate: String?,
     val hasHazard: Boolean,
     val customerState: String?,
-    val checkNumber: String?
+    val checkNumber: String?,
+    val ocrBatchId: String? = null
 )
 
 // Mirrors HennyAdmin.DataAccess.Dtos.InvoiceLines.cs field-for-field. unitsPerCase/shippedCases/
@@ -232,7 +233,9 @@ data class PurchaseOrderLineDto(
     val marketAvg: Double?,
     val oldCog: Double?,
     val originalShippedCases: Int?,
-    val currentQty: Int?
+    val currentQty: Int?,
+    val needsDoubleCheck: Boolean = false,
+    val doubleCheckReason: String? = null
 )
 
 // Manual PO creation - mirrors pos-purchase-orders.ts's manualPO* flow (GetItemsForManualPO,

@@ -86,6 +86,8 @@
             android:exported="false"
             android:theme="@style/Theme.InvoiceScanner" />
 
+        <activity android:name=".ui.ScanOrderReviewActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" />
+
         <activity
             android:name=".ui.PurchaseOrderDetailActivity"
             android:exported="false"

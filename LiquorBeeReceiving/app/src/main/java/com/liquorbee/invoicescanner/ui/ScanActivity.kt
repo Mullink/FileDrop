@@ -35,8 +35,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.UUID
 
 private const val MAX_SCAN_PAGES = 100 // mirrors the desktop app's ScannerConfig.MaxPages / the server's MaxScanPages
-private const val MAX_LONG_EDGE_PX = 2200
-private const val JPEG_QUALITY = 85
+private const val MAX_LONG_EDGE_PX = 4200
+private const val JPEG_QUALITY = 95
 
 // Matches ocr-scan-upload.component.ts's READY_FOR_REVIEW_POLL_MS exactly - this app follows the
 // same async pattern as the web "purple button" flow: submit returns immediately (extraction runs
@@ -122,7 +122,7 @@ class ScanActivity : AppCompatActivity() {
     // Opens an existing, already-built HennyAdminOnline web page rather than reimplementing it
     // natively - same site the app already authenticates against, just a different route.
     private fun openWebPage(route: String) {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ApiConfig.BASE_URL + route)))
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ApiConfig.BASE_URL + route).buildUpon().appendQueryParameter("ngsw-bypass", "true").build()))
     }
 
     override fun onResume() {

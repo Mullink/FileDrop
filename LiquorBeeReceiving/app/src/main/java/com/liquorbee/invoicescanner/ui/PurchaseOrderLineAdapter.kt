@@ -29,7 +29,9 @@ class PurchaseOrderLineAdapter(
     private val lines: List<PurchaseOrderLineDto>,
     private val readOnly: Boolean,
     private val onChanged: () -> Unit,
-    private val onRemoved: (Int) -> Unit
+    private val onRemoved: (Int) -> Unit,
+    private val scanned: Boolean = false,
+    private val onReview: () -> Unit = {}
 ) : RecyclerView.Adapter<PurchaseOrderLineAdapter.ViewHolder>() {
 
     inner class ViewHolder(val binding: ItemPurchaseOrderLineBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -50,7 +52,7 @@ class PurchaseOrderLineAdapter(
         b.textItemName.text = line.displayName ?: line.itemName ?: line.itemCode ?: "(Unmatched item)"
         b.textItemMeta.text = listOfNotNull(line.itemCode, line.itemCategory, line.subCategory)
             .filter { it.isNotBlank() }.joinToString(" • ")
-        b.textWarningBadge.visibility = if (line.isNotLinked || line.hasDuplicates) View.VISIBLE else View.GONE
+        b.textWarningBadge.visibility = if (line.isNotLinked || line.hasDuplicates || line.needsDoubleCheck) View.VISIBLE else View.GONE
 
         // Matches the web's Curr. Qty column exactly (#16a34a green / #dc2626 red).
         b.textCurrQty.text = "Qty: ${line.currentQty ?: 0}"
@@ -60,13 +62,15 @@ class PurchaseOrderLineAdapter(
         renderCostIncrease(b, line)
         renderMarginBadge(b, line)
 
-        b.buttonRemove.visibility = if (readOnly) View.GONE else View.VISIBLE
+        b.buttonReviewScan.visibility = if(scanned && !readOnly) View.VISIBLE else View.GONE
+        b.buttonReviewScan.setOnClickListener { onReview() }
+        b.buttonRemove.visibility = if (readOnly || scanned) View.GONE else View.VISIBLE
         b.buttonRemove.setOnClickListener {
             val pos = holder.bindingAdapterPosition
             if (pos != RecyclerView.NO_POSITION) onRemoved(pos)
         }
 
-        val isBottles = (line.unitsPerCase ?: 1) == 1
+        val isBottles = if(scanned) (line.shippedCases ?: 0) == 0 else (line.unitsPerCase ?: 1) == 1
         b.textQtyType.text = "Qty Type: " + if (isBottles) "Bottles" else "Cases"
 
         holder.qtyWatcher?.let { b.editQty.removeTextChangedListener(it) }
@@ -79,8 +83,8 @@ class PurchaseOrderLineAdapter(
         renderPricing(b, line)
 
         val enabled = !readOnly
-        b.editQty.isEnabled = enabled
-        b.editUnitCost.isEnabled = enabled
+        b.editQty.isEnabled = enabled && !scanned
+        b.editUnitCost.isEnabled = enabled && !scanned
         b.editCurrentUnitPrice.isEnabled = enabled
 
         val suggested = line.suggestedUnitPrice

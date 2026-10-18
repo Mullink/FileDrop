@@ -18,6 +18,19 @@ import retrofit2.http.Query
  * exception: CreateVendorOnly, added specifically for this app's simplified "Add Vendor" (just a
  * name, no template/sample-image flow) - see CustomerInvoiceTemplatesController.CreateVendorOnlyAsync. */
 interface HennyAdminApi {
+    @GET("InvoiceOcrScan/GetOrderCorrections/{invoiceId}")
+    suspend fun getOrderCorrections(@Path("invoiceId") invoiceId: Long): ScanOrderReview
+    @POST("InvoiceOcrScan/SaveOrderCorrection/{invoiceId}")
+    suspend fun saveOrderCorrection(@Path("invoiceId") invoiceId: Long, @Body edit: ScanLineReview): ScanOrderReview
+    @GET("InvoiceOcrScan/SearchOrderItems/{invoiceId}")
+    suspend fun searchOrderItems(@Path("invoiceId") invoiceId: Long, @Query("query") query: String): List<QuanticInventorySearchResultDto>
+    @POST("InvoiceOcrScan/ChangeOrderItem/{invoiceId}/{lineId}")
+    suspend fun changeOrderItem(@Path("invoiceId") invoiceId: Long, @Path("lineId") lineId: Long, @Body choice: ScanItemChoice): Response<Unit>
+    @POST("InvoiceOcrScan/ConfirmOrderItem/{invoiceId}/{lineId}")
+    suspend fun confirmOrderItem(@Path("invoiceId") invoiceId: Long, @Path("lineId") lineId: Long, @Body choice: ScanItemChoice): ScanOrderReview
+    @POST("InvoiceOcrScan/UpdateInvoiceTotals/{batchId}")
+    suspend fun updateScanTotals(@Path("batchId") batchId: String, @Body totals: ScanTotals): ScanReconciliation
+
 
     // Basic auth passed explicitly per-call (rather than via the app-wide bearer interceptor)
     // because this ONE call authenticates differently than everything else in the API - see
