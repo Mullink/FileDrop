@@ -54,6 +54,11 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     // web's removeLine()/saveChanges() split exactly (see pos-purchase-orders.ts).
     private val pendingRemovedLineIds = mutableListOf<Long>()
 
+    private var itemsExpanded = false
+    private var invoicePageNumber = 1
+    private var showOnlyReview = false
+    private var reviewLineIds = emptySet<Long>()
+    private fun needsReview(line: PurchaseOrderLineDto) = line.lineId in reviewLineIds || line.needsDoubleCheck || line.isNotLinked || line.hasDuplicates
     private var isScanned = false
     private var scanReady = false
     private var returningFromReview = false
@@ -82,6 +87,11 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         invoiceId = intent.getLongExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, 0)
 
         binding.recyclerLines.layoutManager = LinearLayoutManager(this)
+        binding.buttonExpandItems.setOnClickListener { itemsExpanded=!itemsExpanded; applyItemExpansion() }
+        binding.buttonPreviousPage.setOnClickListener { invoicePageNumber--; renderInvoicePage() }
+        binding.buttonNextPage.setOnClickListener { invoicePageNumber++; renderInvoicePage() }
+        binding.buttonNeedsReview.setOnClickListener { showOnlyReview=true; invoicePageNumber=1; renderInvoicePage() }
+        binding.buttonAllItems.setOnClickListener { showOnlyReview=false; invoicePageNumber=1; renderInvoicePage() }
         binding.buttonReviewScan.setOnClickListener { openScanReview() }
         binding.buttonSave.setOnClickListener { saveChanges() }
         binding.buttonReceive.setOnClickListener { confirmReceive() }
@@ -263,28 +273,14 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                 if(isScanned) {
                     try {
                         val review = api.getOrderCorrections(invoiceId)
-                        val count = review.lines.count { it.needsReview }
+                        reviewLineIds = review.lines.filter { it.needsReview }.map { it.lineId }.toSet()
+                        val count = reviewLineIds.size
                         scanReady = review.isEditable && count == 0 && review.reconciliation.isBalanced
                         binding.textScanReview.text = if(scanReady) "Scan checked. Save retail price changes, then receive." else "$count item(s) need review. Check scanned values and invoice totals before receiving."
                     } catch(e: kotlinx.coroutines.CancellationException) { throw e }
                     catch(e: Exception) { binding.textScanReview.text = "Scan review could not load: " + apiError(e) }
                 }
-                val readOnly = h?.status != "STAGED"
-                lineAdapter = PurchaseOrderLineAdapter(
-                    lines,
-                    readOnly = readOnly,
-                    scanned = isScanned,
-                    onReview = { openScanReview() },
-                    onChanged = { updateActualTotal(); refreshButtonStates() },
-                    onRemoved = { position ->
-                        pendingRemovedLineIds.add(lines[position].lineId)
-                        lines.removeAt(position)
-                        lineAdapter.notifyItemRemoved(position)
-                        updateActualTotal()
-                        refreshButtonStates()
-                    }
-                )
-                binding.recyclerLines.adapter = lineAdapter
+                renderInvoicePage()
 
                 renderHeader()
                 refreshButtonStates()
@@ -299,6 +295,42 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         }
     }
 
+    private fun renderInvoicePage() {
+        val filtered = if(isScanned && showOnlyReview) lines.filter { needsReview(it) } else lines
+        val page = invoicePage(filtered,invoicePageNumber,if(isScanned) 20 else maxOf(1,filtered.size))
+        invoicePageNumber=page.number
+        binding.invoicePageControls.visibility=if(isScanned) View.VISIBLE else View.GONE
+        binding.invoiceReviewFilters.visibility=if(isScanned) View.VISIBLE else View.GONE
+        binding.textInvoicePage.text=page.description
+        binding.buttonPreviousPage.isEnabled=page.number>1
+        binding.buttonNextPage.isEnabled=page.number<page.count
+        binding.buttonNeedsReview.text="Needs review ("+lines.count { needsReview(it) }+")"
+        binding.buttonAllItems.text="All items ("+lines.size+")"
+        binding.buttonNeedsReview.isSelected=showOnlyReview
+        binding.buttonAllItems.isSelected=!showOnlyReview
+        styleFilterButton(binding.buttonNeedsReview,showOnlyReview)
+        styleFilterButton(binding.buttonAllItems,!showOnlyReview)
+        applyItemExpansion()
+        // A page is only a view; save, receive, snapshots and totals retain all lines.
+        val visible=page.items.toList()
+        lineAdapter=PurchaseOrderLineAdapter(visible,readOnly=header?.status!="STAGED",scanned=isScanned,
+            onReview={ openScanReview() },onChanged={ updateActualTotal();refreshButtonStates() },
+            onRemoved={ position ->
+                val item=visible[position]
+                pendingRemovedLineIds.add(item.lineId)
+                lines.removeAll { it.lineId==item.lineId }
+                renderInvoicePage();updateActualTotal();refreshButtonStates()
+            })
+        binding.recyclerLines.adapter=lineAdapter
+        binding.recyclerLines.scrollToPosition(0)
+    }
+
+    private fun applyItemExpansion() {
+        binding.orderDetailsScroll.visibility=if(itemsExpanded) View.GONE else View.VISIBLE
+        binding.scanReviewPanel.visibility=if(isScanned && !itemsExpanded) View.VISIBLE else View.GONE
+        binding.buttonExpandItems.visibility=if(isScanned) View.VISIBLE else View.GONE
+        binding.buttonExpandItems.text=if(itemsExpanded) "Exit expanded" else "Expand items"
+    }
     private fun renderHeader() {
         val h = header ?: return
         binding.textVendorOrder.text = "${h.vendor ?: "(Unknown vendor)"} — Order #${h.orderId ?: h.invoiceId}"

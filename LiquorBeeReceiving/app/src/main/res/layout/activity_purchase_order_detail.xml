@@ -47,7 +47,7 @@
         <TextView android:id="@+id/textScanReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#713F12" />
         <Button android:id="@+id/buttonReviewScan" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Review scanned invoice" android:textAllCaps="false" />
     </LinearLayout>
-    <ScrollView
+    <ScrollView android:id="@+id/orderDetailsScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
@@ -186,6 +186,7 @@
             android:text="Line Items"
             android:textStyle="bold"
             android:textColor="@color/purple_dark" />
+        <Button android:id="@+id/buttonExpandItems" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Expand items" android:textAllCaps="false" android:textSize="12sp" android:visibility="gone" />
         <Button
             android:id="@+id/buttonAddItem"
             style="?android:attr/buttonStyleSmall"
@@ -224,6 +225,10 @@
             android:background="@color/screen_background" />
     </LinearLayout>
 
+    <LinearLayout android:id="@+id/invoiceReviewFilters" android:visibility="gone" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="12dp">
+        <Button android:id="@+id/buttonNeedsReview" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Needs review" android:textAllCaps="false" android:textSize="12sp" />
+        <Button android:id="@+id/buttonAllItems" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="All items" android:textAllCaps="false" android:textSize="12sp" />
+    </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerLines"
         android:layout_width="match_parent"
@@ -232,4 +237,11 @@
         android:paddingHorizontal="16dp"
         tools:listitem="@layout/item_purchase_order_line" />
 
+    <LinearLayout android:id="@+id/invoicePageControls" android:visibility="gone" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="12dp">
+        <TextView android:id="@+id/textInvoicePage" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textSize="12sp" android:accessibilityLiveRegion="polite" />
+        <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <Button android:id="@+id/buttonPreviousPage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Previous" android:textAllCaps="false" />
+            <Button android:id="@+id/buttonNextPage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Next" android:textAllCaps="false" />
+        </LinearLayout>
+    </LinearLayout>
 </LinearLayout>

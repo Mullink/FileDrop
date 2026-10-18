@@ -18,8 +18,8 @@ android {
         targetSdk = 33
         // Bump both on every build that gets pushed to the GitHub FileDrop repo - versionCode is
         // what UpdateChecker compares against version.txt there to detect an out-of-date install.
-        versionCode = 27
-        versionName = "2.16"
+        versionCode = 28
+        versionName = "2.17"
     }
 
     buildTypes {

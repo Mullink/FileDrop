@@ -28,6 +28,13 @@ class ScanOrderReviewActivity : AppCompatActivity() {
     private var busy = false
     private var onlyIssues = true
     private var query = ""
+    private var pageNumber = 1
+    private var itemsExpanded = false
+    private lateinit var pageText: TextView
+    private lateinit var previousPage: Button
+    private lateinit var nextPage: Button
+    private lateinit var needsReviewButton: Button
+    private lateinit var allItemsButton: Button
     private lateinit var summary: TextView
     private lateinit var message: TextView
     private lateinit var list: RecyclerView
@@ -43,21 +50,38 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         super.onCreate(state)
         invoiceId = intent.getLongExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, 0)
         val root = column()
-        action("‹ Back to purchase order",root) { finish() }
-        root.addView(label("Review scanned invoice",22f))
-        summary=label("Loading invoice…"); root.addView(summary)
+        val toolbar=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL };root.addView(toolbar)
+        val context=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
+        val back=action("‹ Order",toolbar) { finish() }
+        val refresh=action("Refresh",toolbar) { load() }
+        lateinit var expand: Button
+        expand=action("Expand items",toolbar) {
+            itemsExpanded=!itemsExpanded
+            context.visibility=if(itemsExpanded) View.GONE else View.VISIBLE
+            expand.text=if(itemsExpanded) "Exit expanded" else "Expand items"
+        }
+        listOf(back,refresh,expand).forEach { it.layoutParams=LinearLayout.LayoutParams(0,-2,1f);it.textSize=12f }
+        root.addView(context)
+        context.addView(label("Review scanned invoice",20f))
+        summary=label("Loading invoice…"); context.addView(summary)
         message=label(""); message.setTextColor(Color.rgb(180,35,35)); root.addView(message)
-        totalsButton=action("Review invoice totals",root) { editTotals() }
+        totalsButton=action("Review invoice totals",context) { editTotals() }
         val filters=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
         val search=EditText(this).apply { hint="Search name, SKU or barcode"; setSingleLine() }
         filters.addView(search,LinearLayout.LayoutParams(0,-2,1f))
-        val toggle=CheckBox(this).apply { text="Needs review"; isChecked=true }
-        filters.addView(toggle); root.addView(filters)
-        search.doAfterTextChanged { query=it.toString(); renderRows() }
-        toggle.setOnCheckedChangeListener { _, checked -> onlyIssues=checked; renderRows() }
+        root.addView(filters)
+        val choices=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
+        needsReviewButton=Button(this).apply { text="Needs review"; isAllCaps=false; textSize=12f; setOnClickListener { onlyIssues=true; pageNumber=1; renderRows(); list.scrollToPosition(0) } }
+        allItemsButton=Button(this).apply { text="All items"; isAllCaps=false; textSize=12f; setOnClickListener { onlyIssues=false; pageNumber=1; renderRows(); list.scrollToPosition(0) } }
+        choices.addView(needsReviewButton,LinearLayout.LayoutParams(0,-2,1f));choices.addView(allItemsButton,LinearLayout.LayoutParams(0,-2,1f));root.addView(choices)
+        search.doAfterTextChanged { query=it.toString(); pageNumber=1; renderRows(); list.scrollToPosition(0) }
         list=RecyclerView(this).apply { layoutManager=LinearLayoutManager(this@ScanOrderReviewActivity); adapter=this@ScanOrderReviewActivity.adapter }
         root.addView(list,LinearLayout.LayoutParams(-1,0,1f))
-        action("Refresh saved progress",root) { load() }
+        pageText=label("",12f).apply { gravity=android.view.Gravity.CENTER }; root.addView(pageText)
+        val navigation=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
+        previousPage=Button(this).apply { text="Previous"; isAllCaps=false; setOnClickListener { pageNumber--; renderRows(); list.scrollToPosition(0) } }
+        nextPage=Button(this).apply { text="Next"; isAllCaps=false; setOnClickListener { pageNumber++; renderRows(); list.scrollToPosition(0) } }
+        navigation.addView(previousPage,LinearLayout.LayoutParams(0,-2,1f)); navigation.addView(nextPage,LinearLayout.LayoutParams(0,-2,1f));root.addView(navigation)
         setContentView(root)
         load()
     }
@@ -93,11 +117,24 @@ class ScanOrderReviewActivity : AppCompatActivity() {
     }
     private fun renderRows() {
         val data=review ?: return
-        adapter.rows=data.lines.filter { (!onlyIssues || it.needsReview) &&
+        val matches=data.lines.filter { (!onlyIssues || it.needsReview) &&
             (query.isBlank() || listOf(it.source.text("description"),it.source.text("sku"),it.source.text("upc"), products[it.lineId]?.itemName.orEmpty()).any { value -> value.contains(query,true) }) }
+        val page=invoicePage(matches,pageNumber)
+        pageNumber=page.number
+        adapter.rows=page.items
+        pageText.text=page.description
+        previousPage.isEnabled=!busy && page.number>1
+        nextPage.isEnabled=!busy && page.number<page.count
+        needsReviewButton.text="Needs review ("+data.lines.count { it.needsReview }+")"
+        allItemsButton.text="All items ("+data.lines.size+")"
+        needsReviewButton.isEnabled=!busy;allItemsButton.isEnabled=!busy
+        needsReviewButton.isSelected=onlyIssues;allItemsButton.isSelected=!onlyIssues
+        styleFilterButton(needsReviewButton,onlyIssues)
+        styleFilterButton(allItemsButton,!onlyIssues)
         adapter.notifyDataSetChanged()
-        if(adapter.rows.isEmpty() && !busy && message.text.isBlank()) message.text=if(onlyIssues) "No matching issues. Turn off Needs review to edit any scanned line." else "No matching items."
+        if(adapter.rows.isEmpty() && !busy && message.text.isBlank()) message.text=if(onlyIssues) "No matching issues. Choose All items to edit any scanned line." else "No matching items."
         else if (message.text.startsWith("No matching")) message.text=""
+        message.visibility=if(message.text.isBlank()) View.GONE else View.VISIBLE
     }
     private inner class ReviewAdapter : RecyclerView.Adapter<ReviewAdapter.Holder>() {
         var rows=emptyList<ScanLineReview>()
