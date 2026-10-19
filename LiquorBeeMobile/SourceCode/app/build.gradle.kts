@@ -12,8 +12,8 @@ android {
         applicationId = "com.liquorbee.mobile"
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.6.2"
+        versionCode = 10
+        versionName = "1.6.3"
     }
 
     buildTypes {
