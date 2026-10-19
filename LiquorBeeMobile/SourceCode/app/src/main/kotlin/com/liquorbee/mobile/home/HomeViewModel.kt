@@ -18,7 +18,7 @@ private const val UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000L
 
 data class HomeUiState(
     val showScanInvoice: Boolean = false,
-    val showSalesDashboard: Boolean = true,
+    val showSalesDashboard: Boolean = false,
     val topSellers: TopSellersDto? = null,
     val topSellersLoading: Boolean = true,
     val dashboardSummary: DashboardSummaryDto? = null,
@@ -101,9 +101,7 @@ class HomeViewModel(
         }
     }
 
-    // Same gates the web home page uses (Login/GetCanSeeInvoiceOcrScan, Login/GetHideSalesDashboard)
-    // so this app's Tools list and Sales Dashboard visibility always match the web app for a given
-    // customer, with zero app-side configuration to keep in sync.
+    // Use the same invoice scanning gate as the web home page.
     private fun loadToolsGating() {
         viewModelScope.launch {
             // Matches web's ocrScanVisible getter (pos-purchase-orders.ts) exactly: gated only on
@@ -116,12 +114,6 @@ class HomeViewModel(
                 .getOrNull()?.takeIf { it.isSuccessful }?.body() == true
             _uiState.value = _uiState.value.copy(showScanInvoice = canSeeOcrScan)
 
-            runCatching { apiService.getHideSalesDashboard() }
-                .onSuccess { response ->
-                    if (response.isSuccessful) {
-                        _uiState.value = _uiState.value.copy(showSalesDashboard = response.body() != true)
-                    }
-                }
         }
     }
 
@@ -137,6 +129,16 @@ class HomeViewModel(
                 return@launch
             }
 
+            // Keep the card hidden until the customer is known, including during initial loading.
+            // Customer 278 must remain hidden regardless of the server's dashboard setting.
+            val showSalesDashboard = customerId != 278 && runCatching {
+                apiService.getHideSalesDashboard()
+            }.getOrNull()?.takeIf { it.isSuccessful }?.body() != true
+            _uiState.value = _uiState.value.copy(
+                showSalesDashboard = showSalesDashboard,
+                dashboardLoading = showSalesDashboard
+            )
+
             runCatching { apiService.getLastWeekTopSellers(customerId) }
                 .onSuccess { response ->
                     _uiState.value = _uiState.value.copy(
@@ -147,6 +149,8 @@ class HomeViewModel(
                 .onFailure {
                     _uiState.value = _uiState.value.copy(topSellersLoading = false)
                 }
+
+            if (!showSalesDashboard) return@launch
 
             runCatching { apiService.getQuanticDashboard(customerId) }
                 .onSuccess { response ->
