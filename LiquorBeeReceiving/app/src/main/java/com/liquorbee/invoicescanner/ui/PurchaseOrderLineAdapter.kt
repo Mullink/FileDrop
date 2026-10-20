@@ -31,7 +31,7 @@ class PurchaseOrderLineAdapter(
     private val onChanged: () -> Unit,
     private val onRemoved: (Int) -> Unit,
     private val scanned: Boolean = false,
-    private val onReview: () -> Unit = {}
+    private val onReview: (Long) -> Unit = {}
 ) : RecyclerView.Adapter<PurchaseOrderLineAdapter.ViewHolder>() {
 
     inner class ViewHolder(val binding: ItemPurchaseOrderLineBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -50,20 +50,28 @@ class PurchaseOrderLineAdapter(
         val b = holder.binding
 
         b.textItemName.text = line.displayName ?: line.itemName ?: line.itemCode ?: "(Unmatched item)"
-        b.textItemMeta.text = listOfNotNull(line.itemCode, line.itemCategory, line.subCategory)
-            .filter { it.isNotBlank() }.joinToString(" • ")
+        b.textItemName.setTextColor(if(scanned && !readOnly) 0xFF6743A5.toInt() else 0xFF243047.toInt())
+        b.textItemName.setOnClickListener { if(scanned && !readOnly) onReview(line.lineId) }
+        b.textItemName.contentDescription = (if(scanned && !readOnly) "Correct " else "") + b.textItemName.text
+        b.textItemCode.text = line.itemCode ?: "—"
+        b.textItemMeta.text = line.upcCode.orEmpty()
+        b.textCategory.text = listOfNotNull(line.itemCategory,line.subCategory).filter { it.isNotBlank() }.joinToString("\n")
+        b.textUnitsPerCase.text = (line.unitsPerCase ?: 0).toString()
+        b.textShippedUnits.text = (line.shippedUnits ?: 0).toString()
+        b.textCaseCost.text = money(line.caseCost)
+        b.textDiscount.text = money(line.caseDiscount)
         b.textWarningBadge.visibility = if (line.isNotLinked || line.hasDuplicates || line.needsDoubleCheck) View.VISIBLE else View.GONE
 
         // Matches the web's Curr. Qty column exactly (#16a34a green / #dc2626 red).
-        b.textCurrQty.text = "Qty: ${line.currentQty ?: 0}"
+        b.textCurrQty.text = "${line.currentQty ?: 0}"
         b.textCurrQty.setTextColor(if ((line.currentQty ?: 0) > 0) 0xFF16A34A.toInt() else 0xFFDC2626.toInt())
 
-        b.textAvgCost.text = "Units/case: ${line.unitsPerCase ?: 0} • Avg cost: ${money(line.averageCost)}"
+        b.textAvgCost.text = money(line.averageCost)
         renderCostIncrease(b, line)
         renderMarginBadge(b, line)
 
         b.buttonReviewScan.visibility = if(scanned && !readOnly) View.VISIBLE else View.GONE
-        b.buttonReviewScan.setOnClickListener { onReview() }
+        b.buttonReviewScan.setOnClickListener { onReview(line.lineId) }
         b.buttonRemove.visibility = if (readOnly || scanned) View.GONE else View.VISIBLE
         b.buttonRemove.setOnClickListener {
             val pos = holder.bindingAdapterPosition
@@ -71,7 +79,7 @@ class PurchaseOrderLineAdapter(
         }
 
         val isBottles = if(scanned) (line.shippedCases ?: 0) == 0 else (line.unitsPerCase ?: 1) == 1
-        b.textQtyType.text = "Qty Type: " + if (isBottles) "Bottles" else "Cases"
+        b.textQtyType.text = if (isBottles) "Units" else "Cases"
 
         holder.qtyWatcher?.let { b.editQty.removeTextChangedListener(it) }
         holder.unitCostWatcher?.let { b.editUnitCost.removeTextChangedListener(it) }
@@ -106,6 +114,7 @@ class PurchaseOrderLineAdapter(
                 line.shippedCases = qty
                 line.shippedUnits = (qty ?: 0) * (line.unitsPerCase ?: 0)
             }
+            b.textShippedUnits.text = (line.shippedUnits ?: 0).toString()
             onChanged()
         }.also { b.editQty.addTextChangedListener(it) }
 
@@ -129,6 +138,7 @@ class PurchaseOrderLineAdapter(
     // the same way (price vs unit cost) rather than trusting marginStatus's own wording alone -
     // that field can be null (a brand-new item with no prior price to compare against).
     private fun renderPricing(b: ItemPurchaseOrderLineBinding, line: PurchaseOrderLineDto) {
+        b.textCaseCost.text = money(line.caseCost)
         val parts = mutableListOf<String>()
         parts.add("Suggested: ${money(line.suggestedUnitPrice)}")
         // desiredMarkUp is a ratio from the backend (0.5 = 50%), same convention the web app uses
@@ -138,7 +148,7 @@ class PurchaseOrderLineAdapter(
         line.marginStatus?.let { parts.add("Margin: $it") }
         if (line.isNewItem) parts.add("NEW ITEM")
         if (line.hasPriceChange) parts.add("price changed since staging")
-        b.textPricing.text = parts.joinToString("  •  ")
+        b.textPricing.text = parts.joinToString("\n")
 
         val unitCost = line.unitCost ?: 0.0
         val price = line.currentUnitPrice ?: 0.0

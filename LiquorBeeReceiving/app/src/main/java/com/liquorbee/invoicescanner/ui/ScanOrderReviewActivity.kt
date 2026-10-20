@@ -29,6 +29,8 @@ class ScanOrderReviewActivity : AppCompatActivity() {
     private var onlyIssues = true
     private var query = ""
     private var pageNumber = 1
+    private var pendingLineId = 0L
+    private val tableWidths = listOf(84,260,80,90,90,100,90,110,300,260)
     private var itemsExpanded = false
     private lateinit var pageText: TextView
     private lateinit var previousPage: Button
@@ -49,6 +51,7 @@ class ScanOrderReviewActivity : AppCompatActivity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         invoiceId = intent.getLongExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, 0)
+        pendingLineId=intent.getLongExtra("reviewLineId",0L)
         val root = column()
         val toolbar=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL };root.addView(toolbar)
         val context=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
@@ -62,13 +65,17 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         }
         listOf(back,refresh,expand).forEach { it.layoutParams=LinearLayout.LayoutParams(0,-2,1f);it.textSize=12f }
         root.addView(context)
-        context.addView(label("Review scanned invoice",20f))
+        context.addView(label("1. Review scan",20f))
         summary=label("Loading invoice…"); context.addView(summary)
         message=label(""); message.setTextColor(Color.rgb(180,35,35)); root.addView(message)
         totalsButton=action("Review invoice totals",context) { editTotals() }
         val filters=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
         val search=EditText(this).apply { hint="Search name, SKU or barcode"; setSingleLine() }
         filters.addView(search,LinearLayout.LayoutParams(0,-2,1f))
+        val find=Button(this).apply { text="Search"; isAllCaps=false; setOnClickListener {
+            query=search.text.toString();onlyIssues=false;pageNumber=1;renderRows();list.scrollToPosition(0)
+            (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(search.windowToken,0)
+        } };filters.addView(find,LinearLayout.LayoutParams(-2,dp(48)))
         root.addView(filters)
         val choices=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
         needsReviewButton=Button(this).apply { text="Needs review"; isAllCaps=false; textSize=12f; setOnClickListener { onlyIssues=true; pageNumber=1; renderRows(); list.scrollToPosition(0) } }
@@ -76,7 +83,18 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         choices.addView(needsReviewButton,LinearLayout.LayoutParams(0,-2,1f));choices.addView(allItemsButton,LinearLayout.LayoutParams(0,-2,1f));root.addView(choices)
         search.doAfterTextChanged { query=it.toString(); pageNumber=1; renderRows(); list.scrollToPosition(0) }
         list=RecyclerView(this).apply { layoutManager=LinearLayoutManager(this@ScanOrderReviewActivity); adapter=this@ScanOrderReviewActivity.adapter }
-        root.addView(list,LinearLayout.LayoutParams(-1,0,1f))
+        root.addView(label("Tap an item name to correct it. Swipe sideways for more columns.",12f))
+        val table=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
+        val headings=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; setBackgroundColor(0xFFF1EDFA.toInt()) }
+        listOf("Code","Name / barcode","Cases","Individual units","Units / case","Printed price","Discount","Line total","Match / review","Actions").forEachIndexed { index,title ->
+            headings.addView(tableCell(title,tableWidths[index],true))
+        }
+        table.addView(headings,LinearLayout.LayoutParams(-1,dp(52)))
+        table.addView(list,LinearLayout.LayoutParams(-1,0,1f))
+        val horizontal=HorizontalScrollView(this).apply { isFillViewport=true
+            addView(table,ViewGroup.LayoutParams(dp(tableWidths.sum()),-1))
+        }
+        root.addView(horizontal,LinearLayout.LayoutParams(-1,0,1f))
         pageText=label("",12f).apply { gravity=android.view.Gravity.CENTER }; root.addView(pageText)
         val navigation=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
         previousPage=Button(this).apply { text="Previous"; isAllCaps=false; setOnClickListener { pageNumber--; renderRows(); list.scrollToPosition(0) } }
@@ -106,18 +124,26 @@ class ScanOrderReviewActivity : AppCompatActivity() {
     }
     private fun render() {
         val data=review ?: return
+        if(!busy && pendingLineId==0L && intent.getBooleanExtra("advanceWhenClear",false) && data.readyForPricing) {
+            Toast.makeText(this,"Scan checked. Review item matches and prices.",Toast.LENGTH_SHORT).show()
+            finish();return
+        }
         val count=data.lines.count { it.needsReview }
         val totals=data.reconciliation
         summary.text=if (!data.isEditable) "This order is no longer staged. Saved scan details are shown below."
-            else if(count==0 && totals.isBalanced) "Ready for receiving. Return to the order to save retail prices and receive."
+            else if(data.readyForPricing) "Ready for receiving. Return to the order to save retail prices and receive."
             else "$count item(s) need review. Correct highlighted values, confirm item matches, then check the invoice totals."
         totalsButton.text=if(totals.isBalanced) "Totals match • ${money(totals.calculatedTotal)}" else "Check totals • difference ${money(totals.difference)}"
         totalsButton.isEnabled=!busy
         renderRows()
+        if(!busy && pendingLineId!=0L) {
+            val row=data.lines.find { it.lineId==pendingLineId };pendingLineId=0L
+            if(row!=null && data.isEditable) editLine(row)
+        }
     }
     private fun renderRows() {
         val data=review ?: return
-        val matches=data.lines.filter { (!onlyIssues || it.needsReview) &&
+        val matches=data.lines.filter { (!onlyIssues || query.isNotBlank() || it.needsReview) &&
             (query.isBlank() || listOf(it.source.text("description"),it.source.text("sku"),it.source.text("upc"), products[it.lineId]?.itemName.orEmpty()).any { value -> value.contains(query,true) }) }
         val page=invoicePage(matches,pageNumber)
         pageNumber=page.number
@@ -136,25 +162,47 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         else if (message.text.startsWith("No matching")) message.text=""
         message.visibility=if(message.text.isBlank()) View.GONE else View.VISIBLE
     }
+    private fun tableCell(value:String,width:Int,heading:Boolean=false)=label(value,if(heading) 12f else 13f).apply {
+        layoutParams=LinearLayout.LayoutParams(dp(width),if(heading) -1 else -2)
+        setPadding(dp(8),dp(10),dp(8),dp(10))
+        if(heading) { setTypeface(typeface,android.graphics.Typeface.BOLD);gravity=android.view.Gravity.CENTER_VERTICAL }
+    }
     private inner class ReviewAdapter : RecyclerView.Adapter<ReviewAdapter.Holder>() {
         var rows=emptyList<ScanLineReview>()
         inner class Holder(val box: LinearLayout): RecyclerView.ViewHolder(box)
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int)=Holder(column().apply { layoutParams=RecyclerView.LayoutParams(-1,-2) })
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int)=Holder(LinearLayout(this@ScanOrderReviewActivity).apply {
+            orientation=LinearLayout.HORIZONTAL;layoutParams=RecyclerView.LayoutParams(-1,-2);minimumHeight=dp(80)
+        })
         override fun getItemCount()=rows.size
         override fun onBindViewHolder(holder: Holder, position: Int) {
-            val row=rows[position]; val source=row.source; val item=products[row.lineId]; val box=holder.box
-            box.removeAllViews(); box.setBackgroundColor(if(row.needsReview) 0xFFFFF3E0.toInt() else Color.WHITE)
-            box.addView(label(source.text("description").ifBlank { item?.itemName ?: "Scanned item" },18f))
-            box.addView(label("SKU ${source.text("sku")} • UPC ${source.text("upc")}"))
-            box.addView(label("Matched to: ${item?.displayName ?: item?.itemName ?: source.text("matchedItemName").ifBlank { "New / unmatched item" }}"))
-            box.addView(label("Cases ${source.text("caseQty").ifBlank { "—" }} • Individual units ${source.text("bottleQty").ifBlank { "—" }} • Units/case ${source.text("packSize").ifBlank { "—" }}\nPrinted total ${source.text("extendedTotal").ifBlank { "—" }}"))
-            if(row.isMiscCharge) box.addView(label("MISC charge • Included in invoice totals; no inventory will be received."))
-            if(row.issues.isNotEmpty()) box.addView(label(row.issues.values.distinct().joinToString("\n")).apply { setTextColor(0xFFB45309.toInt()) })
+            val row=rows[position];val source=row.source;val item=products[row.lineId];val box=holder.box
+            box.removeAllViews();box.setBackgroundColor(if(row.needsReview) 0xFFFFF6D8.toInt() else if(position%2==0) Color.WHITE else 0xFFF8FAFC.toInt())
+            val match=if(row.isMiscCharge) "MISC charge: no inventory received" else
+                "Matched: ${item?.displayName ?: item?.itemName ?: source.text("matchedItemName").ifBlank { "New / unmatched item" }}"
+            val values=listOf(source.text("sku"),source.text("description")+"\n"+source.text("upc"),
+                source.text("caseQty"),source.text("bottleQty"),source.text("packSize").ifBlank { source.text("effectiveUnitsPerCase") },
+                source.text("unitCost"),source.text("lineDiscount"),source.text("extendedTotal"),
+                match+"\n"+row.issues.values.distinct().joinToString("\n"))
+            values.forEachIndexed { index,value ->
+                val cell=tableCell(value.ifBlank { "—" },tableWidths[index])
+                if(index==1 && review?.isEditable==true) {
+                    cell.setTextColor(0xFF6743A5.toInt())
+                    cell.contentDescription="Correct " + source.text("description")
+                    cell.setOnClickListener { if(!busy) editLine(row) }
+                }
+                box.addView(cell)
+            }
+            val actions=LinearLayout(this@ScanOrderReviewActivity).apply { orientation=LinearLayout.HORIZONTAL;setPadding(dp(4),dp(8),dp(4),dp(8)) }
+            box.addView(actions,LinearLayout.LayoutParams(dp(tableWidths.last()),-2))
             if(review?.isEditable==true) {
-                action("Edit scanned values",box) { editLine(row) }.isEnabled=!busy
+                val edit=action("Edit",actions) { editLine(row) };edit.isEnabled=!busy
+                edit.layoutParams=LinearLayout.LayoutParams(0,dp(48),1f)
                 if(!row.isMiscCharge) {
-                    action(if(row.itemConfirmed) "Item confirmed" else "Confirm this item",box) { confirmItem(row) }.isEnabled=!busy && !row.itemConfirmed && item!=null
-                    action("Find a different item",box) { searchItem(row) }.isEnabled=!busy
+                    val confirm=action(if(row.itemConfirmed) "Matched" else "Confirm",actions) { confirmItem(row) }
+                    confirm.isEnabled=!busy && !row.itemConfirmed && item!=null
+                    confirm.layoutParams=LinearLayout.LayoutParams(0,dp(48),1f)
+                    val find=action("Find",actions) { searchItem(row) };find.isEnabled=!busy
+                    find.layoutParams=LinearLayout.LayoutParams(0,dp(48),1f)
                 }
             }
         }

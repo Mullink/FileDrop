@@ -57,15 +57,20 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     private var itemsExpanded = false
     private var invoicePageNumber = 1
     private var showOnlyReview = false
+    private var invoiceQuery = ""
+    private var initialScanViewChosen = false
     private var reviewLineIds = emptySet<Long>()
     private fun needsReview(line: PurchaseOrderLineDto) = line.lineId in reviewLineIds || line.needsDoubleCheck || line.isNotLinked || line.hasDuplicates
     private var isScanned = false
     private var scanReady = false
     private var returningFromReview = false
-    private fun openScanReview() {
+    private fun openScanReview(lineId: Long? = null) {
         if (hasUnsavedChanges()) { showMessage("Save your current changes before reviewing the scan.", true); return }
         returningFromReview = true
-        startActivity(Intent(this, ScanOrderReviewActivity::class.java).putExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, invoiceId))
+        startActivity(Intent(this, ScanOrderReviewActivity::class.java)
+            .putExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, invoiceId)
+            .putExtra("reviewLineId", lineId ?: 0L)
+            .putExtra("advanceWhenClear", !scanReady && lineId == null))
     }
     override fun onResume() {
         super.onResume()
@@ -82,6 +87,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         setContentView(binding.root)
         binding.textBack.setOnClickListener { finish() }
         title = "Order Detail"
+        initialScanViewChosen = savedInstanceState?.getBoolean("initialScanViewChosen") ?: false
 
         session = SessionManager(this)
         invoiceId = intent.getLongExtra(PurchaseOrderListActivity.EXTRA_INVOICE_ID, 0)
@@ -93,6 +99,11 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         binding.buttonNeedsReview.setOnClickListener { showOnlyReview=true; invoicePageNumber=1; renderInvoicePage() }
         binding.buttonAllItems.setOnClickListener { showOnlyReview=false; invoicePageNumber=1; renderInvoicePage() }
         binding.buttonReviewScan.setOnClickListener { openScanReview() }
+        binding.buttonInvoiceSearch.setOnClickListener { searchInvoice() }
+        binding.buttonClearInvoiceSearch.setOnClickListener { binding.editInvoiceSearch.setText(""); searchInvoice() }
+        binding.editInvoiceSearch.setOnEditorActionListener { _, action, _ ->
+            if(action == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) { searchInvoice(); true } else false
+        }
         binding.buttonSave.setOnClickListener { saveChanges() }
         binding.buttonReceive.setOnClickListener { confirmReceive() }
         binding.buttonSaveCheckNumber.setOnClickListener { saveCheckNumber() }
@@ -112,6 +123,20 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         load()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("initialScanViewChosen", initialScanViewChosen)
+        super.onSaveInstanceState(outState)
+    }
+    private fun searchInvoice() {
+        invoiceQuery=binding.editInvoiceSearch.text.toString()
+        if(invoiceQuery.isNotBlank()) showOnlyReview=false
+        invoicePageNumber=1
+        binding.buttonClearInvoiceSearch.visibility=if(invoiceQuery.isBlank()) View.GONE else View.VISIBLE
+        renderInvoicePage()
+        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+            .hideSoftInputFromWindow(binding.editInvoiceSearch.windowToken,0)
+        binding.editInvoiceSearch.clearFocus()
+    }
     private var searchJob: Job? = null
 
     // Same server-side-search-per-keystroke pattern as StagedInvoiceDetailActivity's Add Item.
@@ -275,7 +300,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                         val review = api.getOrderCorrections(invoiceId)
                         reviewLineIds = review.lines.filter { it.needsReview }.map { it.lineId }.toSet()
                         val count = reviewLineIds.size
-                        scanReady = review.isEditable && count == 0 && review.reconciliation.isBalanced
+                        scanReady = review.isEditable && review.readyForPricing
                         binding.textScanReview.text = if(scanReady) "Scan checked. Save retail price changes, then receive." else "$count item(s) need review. Check scanned values and invoice totals before receiving."
                     } catch(e: kotlinx.coroutines.CancellationException) { throw e }
                     catch(e: Exception) { binding.textScanReview.text = "Scan review could not load: " + apiError(e) }
@@ -287,6 +312,11 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
 
                 binding.progressLoading.visibility = View.GONE
                 binding.detailContent.visibility = View.VISIBLE
+                if(isScanned && !initialScanViewChosen) {
+                    initialScanViewChosen=true
+                    setDetailCollapsed(true)
+                    if(!scanReady && header?.status=="STAGED") openScanReview()
+                }
             } catch (e: Exception) {
                 binding.progressLoading.visibility = View.GONE
                 binding.textLoadError.visibility = View.VISIBLE
@@ -296,12 +326,15 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     }
 
     private fun renderInvoicePage() {
-        val filtered = if(isScanned && showOnlyReview) lines.filter { needsReview(it) } else lines
-        val page = invoicePage(filtered,invoicePageNumber,if(isScanned) 20 else maxOf(1,filtered.size))
+        val candidates = if(isScanned && showOnlyReview) lines.filter { needsReview(it) } else lines
+        val filtered = searchInvoiceItems(candidates, invoiceQuery) {
+            listOfNotNull(it.itemCode,it.itemName,it.displayName,it.upcCode,it.itemCategory,it.subCategory).joinToString(" ")
+        }
+        val page = invoicePage(filtered,invoicePageNumber)
         invoicePageNumber=page.number
-        binding.invoicePageControls.visibility=if(isScanned) View.VISIBLE else View.GONE
+        binding.invoicePageControls.visibility=View.VISIBLE
         binding.invoiceReviewFilters.visibility=if(isScanned) View.VISIBLE else View.GONE
-        binding.textInvoicePage.text=page.description
+        binding.textInvoicePage.text=page.description + if(invoiceQuery.isNotBlank()) " • ${lines.size} invoice items" else ""
         binding.buttonPreviousPage.isEnabled=page.number>1
         binding.buttonNextPage.isEnabled=page.number<page.count
         binding.buttonNeedsReview.text="Needs review ("+lines.count { needsReview(it) }+")"
@@ -314,7 +347,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
         // A page is only a view; save, receive, snapshots and totals retain all lines.
         val visible=page.items.toList()
         lineAdapter=PurchaseOrderLineAdapter(visible,readOnly=header?.status!="STAGED",scanned=isScanned,
-            onReview={ openScanReview() },onChanged={ updateActualTotal();refreshButtonStates() },
+            onReview={ lineId -> openScanReview(lineId) },onChanged={ updateActualTotal();refreshButtonStates() },
             onRemoved={ position ->
                 val item=visible[position]
                 pendingRemovedLineIds.add(item.lineId)

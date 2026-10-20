@@ -45,7 +45,7 @@
 
     <LinearLayout android:id="@+id/scanReviewPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp" android:visibility="gone" android:background="#FFF3E0">
         <TextView android:id="@+id/textScanReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#713F12" />
-        <Button android:id="@+id/buttonReviewScan" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Review scanned invoice" android:textAllCaps="false" />
+        <Button android:id="@+id/buttonReviewScan" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="1. Review scan" android:textAllCaps="false" />
     </LinearLayout>
     <ScrollView android:id="@+id/orderDetailsScroll"
         android:layout_width="match_parent"
@@ -141,10 +141,7 @@
                     <Button android:id="@+id/buttonSaveCheckNumber" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom" android:text="Save #" android:textSize="11sp" android:background="@drawable/bg_button_muted" android:textColor="@color/white" />
                 </LinearLayout>
 
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
-                    <Button android:id="@+id/buttonSave" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Save Changes" android:layout_marginEnd="4dp" android:background="@drawable/bg_button_muted" android:textColor="@color/white" />
-                    <Button android:id="@+id/buttonReceive" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Receive Order" android:background="@drawable/bg_button_primary" android:textColor="@color/white" />
-                </LinearLayout>
+
 
                 <Button
                     android:id="@+id/buttonMoreOptions"
@@ -157,12 +154,7 @@
                     android:background="@drawable/bg_button_dark"
                     android:textColor="@color/white" />
 
-                <TextView
-                    android:id="@+id/textMessage"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:visibility="gone" />
+
 
                 </LinearLayout>
 
@@ -183,7 +175,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Line Items"
+            android:text="2. Item matches &amp; prices"
             android:textStyle="bold"
             android:textColor="@color/purple_dark" />
         <Button android:id="@+id/buttonExpandItems" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Expand items" android:textAllCaps="false" android:textSize="12sp" android:visibility="gone" />
@@ -229,13 +221,18 @@
         <Button android:id="@+id/buttonNeedsReview" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Needs review" android:textAllCaps="false" android:textSize="12sp" />
         <Button android:id="@+id/buttonAllItems" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="All items" android:textAllCaps="false" android:textSize="12sp" />
     </LinearLayout>
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerLines"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingHorizontal="16dp"
-        tools:listitem="@layout/item_purchase_order_line" />
+    <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="12dp">
+      <EditText android:id="@+id/editInvoiceSearch" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:hint="Code, name or barcode — all pages" android:singleLine="true" android:textSize="13sp" android:imeOptions="actionSearch" android:inputType="text" />
+      <Button android:id="@+id/buttonInvoiceSearch" android:layout_width="wrap_content" android:layout_height="48dp" android:text="Search" android:textAllCaps="false" />
+      <Button android:id="@+id/buttonClearInvoiceSearch" android:layout_width="48dp" android:layout_height="48dp" android:text="×" android:contentDescription="Clear invoice search" android:visibility="gone" android:minWidth="0dp" android:padding="0dp" />
+    </LinearLayout>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="16dp" android:paddingVertical="4dp" android:text="Tap an item name to correct the scan. Swipe sideways for prices and more columns." android:textSize="11sp" android:textColor="#687386" />
+    <HorizontalScrollView android:id="@+id/invoiceTableScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:scrollbars="horizontal">
+      <LinearLayout android:layout_width="1730dp" android:layout_height="match_parent" android:orientation="vertical">
+        <include layout="@layout/invoice_table_header" />
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerLines" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" tools:listitem="@layout/item_purchase_order_line" />
+      </LinearLayout>
+    </HorizontalScrollView>
 
     <LinearLayout android:id="@+id/invoicePageControls" android:visibility="gone" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="12dp">
         <TextView android:id="@+id/textInvoicePage" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textSize="12sp" android:accessibilityLiveRegion="polite" />
@@ -244,4 +241,14 @@
             <Button android:id="@+id/buttonNextPage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Next" android:textAllCaps="false" />
         </LinearLayout>
     </LinearLayout>
+                <TextView
+                    android:id="@+id/textMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:visibility="gone" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
+                    <Button android:id="@+id/buttonSave" android:enabled="false" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Save Changes" android:layout_marginEnd="4dp" android:background="@drawable/bg_button_muted" android:textColor="@color/white" />
+                    <Button android:id="@+id/buttonReceive" android:enabled="false" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Receive Order" android:background="@drawable/bg_button_primary" android:textColor="@color/white" />
+                </LinearLayout>
 </LinearLayout>

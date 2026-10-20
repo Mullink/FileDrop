@@ -5,7 +5,10 @@ import retrofit2.HttpException
 import retrofit2.Response
 
 data class ScanOrderReview(val isEditable: Boolean, val batchId: String,
-    val reconciliation: ScanReconciliation, val lines: List<ScanLineReview>)
+    val reconciliation: ScanReconciliation, val lines: List<ScanLineReview>) {
+    val readyForPricing: Boolean get() = lines.isNotEmpty() && lines.none { it.needsReview } &&
+        reconciliation.isBalanced && reconciliation.issues.isEmpty()
+}
 data class ScanLineReview(val lineId: Long, val itemConfirmed: Boolean, val version: String,
     val source: JsonObject, val issues: Map<String,String>, val isMiscCharge: Boolean = false) {
     val needsReview: Boolean get() = issues.isNotEmpty()

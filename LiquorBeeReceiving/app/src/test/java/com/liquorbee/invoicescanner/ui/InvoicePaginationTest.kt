@@ -4,6 +4,15 @@ import org.junit.Assert.*
 
 class InvoicePaginationTest {
     data class Item(val id:Int,var quantity:Int=1)
+    @Test fun searchIncludesLaterPagesAndKeepsOriginalObjects() {
+        val invoice=(1..65).map { Item(it) }
+        val results=searchInvoiceItems(invoice,"product 65") { "Product ${it.id}" }
+        val page=invoicePage(results,4)
+        assertEquals(1,page.number);assertEquals(65,page.items.single().id)
+        page.items.single().quantity=9;assertEquals(9,invoice[64].quantity)
+        assertEquals(65,searchInvoiceItems(invoice,"") { it.id.toString() }.size)
+        assertTrue(searchInvoiceItems(invoice,"missing") { it.id.toString() }.isEmpty())
+    }
     @Test fun pagesRetainEditsForTheWholeInvoice() {
         val invoice=(1..105).map { Item(it) }
         val first=invoicePage(invoice,1);assertEquals(20,first.items.size)

@@ -11,3 +11,12 @@ fun <T> invoicePage(items: List<T>, requestedPage: Int, pageSize: Int = 20): Inv
     val start=(page-1)*pageSize
     return InvoicePage(page,count,start,items.size,items.subList(start,minOf(start+pageSize,items.size)))
 }
+
+/** Filter the whole invoice before paging; returned objects are the original editable rows. */
+fun <T> searchInvoiceItems(items: List<T>, query: String, text: (T) -> String): List<T> {
+    val words=query.trim().lowercase(java.util.Locale.ROOT).split(Regex("\\s+")).filter { it.isNotBlank() }
+    return if(words.isEmpty()) items else items.filter { item ->
+        val value=text(item).lowercase(java.util.Locale.ROOT)
+        words.all { value.contains(it) }
+    }
+}

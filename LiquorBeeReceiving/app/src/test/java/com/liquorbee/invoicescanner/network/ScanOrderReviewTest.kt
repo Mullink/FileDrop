@@ -17,6 +17,17 @@ class ScanOrderReviewTest {
         assertEquals("1",row.source.text("caseQty"))
         assertTrue(row.needsReview);assertTrue(row.isMiscCharge)
     }
+    @Test fun pricingStepRequiresRealRowsNoIssuesAndBalancedTotals() {
+        val row=Gson().fromJson(json,ScanLineReview::class.java)
+        val clean=row.copy(issues=emptyMap())
+        val totals=ScanReconciliation(ScanTotals(100.0,0.0,0.0,0.0),100.0,100.0,0.0,true,emptyList())
+        val review=ScanOrderReview(true,"batch",totals,listOf(clean))
+        assertTrue(review.readyForPricing)
+        assertFalse(review.copy(lines=listOf(row)).readyForPricing)
+        assertFalse(review.copy(lines=emptyList()).readyForPricing)
+        assertFalse(review.copy(reconciliation=totals.copy(isBalanced=false)).readyForPricing)
+        assertFalse(review.copy(reconciliation=totals.copy(issues=listOf("Check fee"))).readyForPricing)
+    }
     @Test fun successfulEmptyResponseIsAccepted() { Response.success<Unit>(null).requireSuccess() }
     @Test fun serverRejectionIsNotReportedAsSuccess() {
         try { Response.error<Unit>(400,"Please correct the printed amount".toResponseBody()).requireSuccess();fail("Expected server rejection") }
