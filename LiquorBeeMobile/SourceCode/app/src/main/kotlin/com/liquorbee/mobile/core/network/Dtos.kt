@@ -262,3 +262,6 @@ data class PriceCheckEditDto(
 
 @Serializable
 data class PriceCheckVendorDto(val vendorId: String, val vendorName: String)
+
+@Serializable
+data class InvoiceTemplateDto(val id: Int, val vendorName: String, val isActive: Boolean)

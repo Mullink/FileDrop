@@ -124,9 +124,20 @@ fun ScanInvoiceScreen(viewModel: ScanInvoiceViewModel, onBack: () -> Unit) {
                         vendors = uiState.vendors,
                         selectedVendorId = uiState.selectedVendorId,
                         loading = uiState.vendorsLoading,
+                        enabled = !uiState.submitting && uiState.scanMode != null,
+                        allowNewVendor = uiState.scanMode == InvoiceScanMode.HUMAN_QUEUE,
                         onVendorSelected = viewModel::onVendorSelected,
                         onNewVendorRequested = viewModel::openNewVendorDialog
                     )
+                    if (uiState.scanMode == InvoiceScanMode.OCR_TEMPLATE) {
+                        Text("Vendors use your account's invoice templates. Add or edit templates in Scan Invoice Settings on the web.",
+                            style = MaterialTheme.typography.bodySmall, color = LbMuted,
+                            modifier = Modifier.padding(top = 8.dp))
+                    }
+                    TextButton(onClick = viewModel::loadVendors,
+                        enabled = !uiState.vendorsLoading && !uiState.submitting && !uiState.creatingVendor) {
+                        Text("Refresh settings")
+                    }
                 }
             }
 
@@ -172,6 +183,7 @@ fun ScanInvoiceScreen(viewModel: ScanInvoiceViewModel, onBack: () -> Unit) {
                                     }
                                     IconButton(
                                         onClick = { viewModel.removePage(index) },
+                                        enabled = !uiState.submitting,
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .size(24.dp)
@@ -187,7 +199,7 @@ fun ScanInvoiceScreen(viewModel: ScanInvoiceViewModel, onBack: () -> Unit) {
             }
 
             item {
-                StepCard(step = 3, title = "Submit", subtitle = "Your invoice will be queued and staged for you shortly") {
+                StepCard(step = 3, title = "Submit", subtitle = "Upload all pages, then review the results in Purchase Orders") {
                     if (uiState.error != null) {
                         Text(uiState.error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
                     }
@@ -277,18 +289,20 @@ private fun VendorDropdown(
     vendors: List<HumanQueueVendorDto>,
     selectedVendorId: Int?,
     loading: Boolean,
+    enabled: Boolean,
+    allowNewVendor: Boolean,
     onVendorSelected: (Int) -> Unit,
     onNewVendorRequested: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedName = vendors.firstOrNull { it.id == selectedVendorId }?.vendorName ?: ""
 
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { if (!loading) expanded = !expanded }) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { if (!loading && enabled) expanded = !expanded }) {
         OutlinedTextField(
             value = selectedName,
             onValueChange = {},
             readOnly = true,
-            enabled = !loading,
+            enabled = !loading && enabled,
             shape = RoundedCornerShape(6.dp),
             colors = invoiceFieldColors(),
             label = { Text("Vendor") },
@@ -300,7 +314,7 @@ private fun VendorDropdown(
                 .fillMaxWidth()
                 .menuAnchor()
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(Color.White)) {
+        ExposedDropdownMenu(expanded = expanded && enabled && !loading, onDismissRequest = { expanded = false }, modifier = Modifier.background(Color.White)) {
             vendors.forEach { vendor ->
                 DropdownMenuItem(
                     text = { Text(vendor.vendorName, color = if (vendor.id == selectedVendorId) LbActive else LbText) },
@@ -310,7 +324,7 @@ private fun VendorDropdown(
                     }
                 )
             }
-            DropdownMenuItem(
+            if (allowNewVendor) DropdownMenuItem(
                 text = { Text("+ New Vendor…", fontWeight = FontWeight.SemiBold, color = LbActive) },
                 onClick = {
                     expanded = false

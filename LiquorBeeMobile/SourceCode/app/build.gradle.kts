@@ -12,8 +12,8 @@ android {
         applicationId = "com.liquorbee.mobile"
         minSdk = 24
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.6.3"
+        versionCode = 11
+        versionName = "1.6.4"
     }
 
     buildTypes {
@@ -74,4 +74,5 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

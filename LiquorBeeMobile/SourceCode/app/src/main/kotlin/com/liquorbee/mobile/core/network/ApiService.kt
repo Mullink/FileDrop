@@ -156,6 +156,20 @@ interface ApiService {
 
     // ---- Scan Invoice (human-automation queue) ----
 
+    @GET("HumanQueue/GetIsHumanAutomationOn")
+    suspend fun getIsHumanAutomationOn(): Response<Boolean>
+
+    @GET("CustomerInvoiceTemplates/GetTemplates")
+    suspend fun getInvoiceTemplates(): Response<List<InvoiceTemplateDto>>
+
+    @Multipart
+    @POST("InvoiceOcrScan/ScanInvoice")
+    suspend fun submitInvoiceToOcr(
+        @Part("templateId") templateId: RequestBody,
+        @Part("batchId") batchId: RequestBody,
+        @Part images: List<MultipartBody.Part>
+    ): Response<SubmitInvoiceResponseDto>
+
     @GET("HumanQueue/GetActiveVendors")
     suspend fun getHumanQueueVendors(): Response<List<HumanQueueVendorDto>>
 

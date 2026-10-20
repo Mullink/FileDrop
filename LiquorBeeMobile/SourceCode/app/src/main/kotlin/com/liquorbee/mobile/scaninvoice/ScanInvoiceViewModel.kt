@@ -30,6 +30,7 @@ data class ScanInvoicePage(
 
 data class ScanInvoiceUiState(
     val vendorsLoading: Boolean = true,
+    val scanMode: InvoiceScanMode? = null,
     val vendors: List<HumanQueueVendorDto> = emptyList(),
     val selectedVendorId: Int? = null,
     val showNewVendorDialog: Boolean = false,
@@ -42,13 +43,16 @@ data class ScanInvoiceUiState(
     val successMessage: String? = null
 ) {
     val canSubmit: Boolean
-        get() = selectedVendorId != null && pages.isNotEmpty() && !submitting && !processingPhoto
+        get() = scanMode != null && !vendorsLoading && selectedVendorId != null && pages.isNotEmpty() && !submitting && !processingPhoto && !creatingVendor
 }
 
 class ScanInvoiceViewModel(
     private val apiService: ApiService,
     private val appContext: Context
 ) : ViewModel() {
+
+    private val gateway = InvoiceScanGateway(apiService)
+    private var batchId = UUID.randomUUID().toString()
 
     private val _uiState = MutableStateFlow(ScanInvoiceUiState())
     val uiState: StateFlow<ScanInvoiceUiState> = _uiState.asStateFlow()
@@ -61,23 +65,31 @@ class ScanInvoiceViewModel(
         loadVendors()
     }
 
-    private fun loadVendors() {
-        _uiState.value = _uiState.value.copy(vendorsLoading = true)
+    fun loadVendors() {
+        if (_uiState.value.submitting || _uiState.value.creatingVendor) return
+        _uiState.value = _uiState.value.copy(vendorsLoading = true, scanMode = null,
+            selectedVendorId = null, vendors = emptyList(), error = null)
         viewModelScope.launch {
-            val vendors = runCatching { apiService.getHumanQueueVendors() }
-                .getOrNull()
-                ?.takeIf { it.isSuccessful }
-                ?.body()
-                .orEmpty()
-            _uiState.value = _uiState.value.copy(vendors = vendors, vendorsLoading = false)
+            try {
+                val configuration = gateway.loadConfiguration()
+                _uiState.value = _uiState.value.copy(vendors = configuration.vendors,
+                    scanMode = configuration.mode, vendorsLoading = false)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _uiState.value = _uiState.value.copy(vendorsLoading = false,
+                    error = "Could not load invoice scanning settings. Refresh settings to try again. ${e.message.orEmpty()}")
+            }
         }
     }
 
     fun onVendorSelected(vendorId: Int) {
+        if (_uiState.value.submitting || _uiState.value.vendors.none { it.id == vendorId }) return
+        batchId = UUID.randomUUID().toString()
         _uiState.value = _uiState.value.copy(selectedVendorId = vendorId)
     }
 
     fun openNewVendorDialog() {
+        if (_uiState.value.scanMode != InvoiceScanMode.HUMAN_QUEUE || _uiState.value.submitting) return
         _uiState.value = _uiState.value.copy(showNewVendorDialog = true, newVendorName = "")
     }
 
@@ -90,6 +102,7 @@ class ScanInvoiceViewModel(
     }
 
     fun createVendor() {
+        if (_uiState.value.scanMode != InvoiceScanMode.HUMAN_QUEUE || _uiState.value.creatingVendor || _uiState.value.submitting) return
         val name = _uiState.value.newVendorName.trim()
         if (name.isBlank()) return
 
@@ -109,6 +122,7 @@ class ScanInvoiceViewModel(
                     _uiState.value = _uiState.value.copy(creatingVendor = false, error = "Failed to create vendor. Please try again.")
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _uiState.value = _uiState.value.copy(creatingVendor = false, error = "Failed to create vendor: ${e.message ?: e::class.simpleName}")
             }
         }
@@ -134,6 +148,7 @@ class ScanInvoiceViewModel(
     }
 
     private fun addPages(uris: List<Uri>) {
+        batchId = UUID.randomUUID().toString()
         _uiState.value = _uiState.value.copy(processingPhoto = true, error = null)
         viewModelScope.launch {
             val newPages = withContext(Dispatchers.IO) {
@@ -154,6 +169,8 @@ class ScanInvoiceViewModel(
     }
 
     fun removePage(index: Int) {
+        if (_uiState.value.submitting) return
+        batchId = UUID.randomUUID().toString()
         val pages = _uiState.value.pages.toMutableList()
         if (index in pages.indices) pages.removeAt(index)
         _uiState.value = _uiState.value.copy(pages = pages)
@@ -165,6 +182,9 @@ class ScanInvoiceViewModel(
 
     fun submit() {
         val state = _uiState.value
+        if (!state.canSubmit) return
+        val configuration = InvoiceScanConfiguration(state.scanMode!!, state.vendors)
+        val submissionBatchId = batchId
         val vendorId = state.selectedVendorId
         if (vendorId == null) {
             _uiState.value = state.copy(error = "Select a vendor.")
@@ -185,25 +205,16 @@ class ScanInvoiceViewModel(
                         MultipartBody.Part.createFormData("images", "page_${index + 1}.jpg", body)
                     }
                 }
-                val vendorIdBody = vendorId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-                val batchIdBody = UUID.randomUUID().toString().toRequestBody("text/plain".toMediaTypeOrNull())
-
-                val response = apiService.submitInvoiceToHumanQueue(vendorIdBody, batchIdBody, imageParts)
-                if (response.isSuccessful) {
-                    _uiState.value = ScanInvoiceUiState(
-                        vendors = _uiState.value.vendors,
-                        vendorsLoading = false,
-                        successMessage = "Successfully submitted — your invoice will be staged soon."
-                    )
-                } else {
-                    val serverMessage = runCatching { response.errorBody()?.string() }.getOrNull()?.trim()
-                    _uiState.value = _uiState.value.copy(
-                        submitting = false,
-                        error = "Failed to submit invoice (HTTP ${response.code()})" +
-                            if (!serverMessage.isNullOrBlank()) ": $serverMessage" else ". Please try again."
-                    )
-                }
+                gateway.submit(configuration, vendorId, submissionBatchId, imageParts)
+                batchId = UUID.randomUUID().toString()
+                _uiState.value = ScanInvoiceUiState(
+                    vendors = state.vendors,
+                    scanMode = state.scanMode,
+                    vendorsLoading = false,
+                    successMessage = "Invoice uploaded. Check Purchase Orders for processing progress and review."
+                )
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _uiState.value = _uiState.value.copy(
                     submitting = false,
                     error = "Failed to submit invoice: ${e.message ?: e::class.simpleName}"
