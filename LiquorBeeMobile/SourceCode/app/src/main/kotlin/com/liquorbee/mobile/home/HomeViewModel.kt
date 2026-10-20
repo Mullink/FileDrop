@@ -129,11 +129,10 @@ class HomeViewModel(
                 return@launch
             }
 
-            // Keep the card hidden until the customer is known, including during initial loading.
-            // Customer 278 must remain hidden regardless of the server's dashboard setting.
-            val showSalesDashboard = customerId != 278 && runCatching {
-                apiService.getHideSalesDashboard()
-            }.getOrNull()?.takeIf { it.isSuccessful }?.body() != true
+            // Wait for the account's mobile flag. A failed settings request must not expose
+            // a dashboard that the account has hidden; a successful null value means false.
+            val visibilityResponse = runCatching { apiService.getHideSalesDashOnMobile() }.getOrNull()
+            val showSalesDashboard = visibilityResponse?.isSuccessful == true && visibilityResponse.body() != true
             _uiState.value = _uiState.value.copy(
                 showSalesDashboard = showSalesDashboard,
                 dashboardLoading = showSalesDashboard

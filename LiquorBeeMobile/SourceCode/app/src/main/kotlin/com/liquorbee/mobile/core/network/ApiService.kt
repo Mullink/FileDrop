@@ -42,8 +42,8 @@ interface ApiService {
     @GET("Login/GetCanSeeInvoiceOcrScan")
     suspend fun canSeeInvoiceOcrScan(): Response<Boolean>
 
-    @GET("Login/GetHideSalesDashboard")
-    suspend fun getHideSalesDashboard(): Response<Boolean>
+    @GET("Login/GetHideSalesDashOnMobile")
+    suspend fun getHideSalesDashOnMobile(): Response<Boolean>
 
     @GET("Login/GetCurrentCustomerId")
     suspend fun getCurrentCustomerId(): Response<Int>
