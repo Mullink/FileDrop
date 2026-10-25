@@ -10,7 +10,7 @@ data class ScanOrderReview(val isEditable: Boolean, val batchId: String,
         reconciliation.isBalanced && reconciliation.issues.isEmpty()
 }
 data class ScanLineReview(val lineId: Long, val itemConfirmed: Boolean, val version: String,
-    val source: JsonObject, val issues: Map<String,String>, val isMiscCharge: Boolean = false) {
+    val source: JsonObject, val issues: Map<String,String>, val isMiscCharge: Boolean = false, val unitEdit: ScanUnitCorrection? = null) {
     val needsReview: Boolean get() = issues.isNotEmpty()
 }
 data class ScanReconciliation(val totals: ScanTotals, val lineTotal: Double?, val calculatedTotal: Double?,

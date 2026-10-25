@@ -30,7 +30,7 @@ class ScanOrderReviewActivity : AppCompatActivity() {
     private var query = ""
     private var pageNumber = 1
     private var pendingLineId = 0L
-    private val tableWidths = listOf(84,260,80,90,90,100,90,110,300,260)
+    private val tableWidths = listOf(84,260,100,90,110,110,110,300,260)
     private var itemsExpanded = false
     private lateinit var pageText: TextView
     private lateinit var previousPage: Button
@@ -86,7 +86,7 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         root.addView(label("Tap an item name to correct it. Swipe sideways for more columns.",12f))
         val table=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
         val headings=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; setBackgroundColor(0xFFF1EDFA.toInt()) }
-        listOf("Code","Name / barcode","Cases","Individual units","Units / case","Printed price","Discount","Line total","Match / review","Actions").forEachIndexed { index,title ->
+        listOf("Code","Name / barcode","Total units","Units / case","Base / unit","Discount / unit","Line total","Match / review","Actions").forEachIndexed { index,title ->
             headings.addView(tableCell(title,tableWidths[index],true))
         }
         table.addView(headings,LinearLayout.LayoutParams(-1,dp(52)))
@@ -179,9 +179,10 @@ class ScanOrderReviewActivity : AppCompatActivity() {
             box.removeAllViews();box.setBackgroundColor(if(row.needsReview) 0xFFFFF6D8.toInt() else if(position%2==0) Color.WHITE else 0xFFF8FAFC.toInt())
             val match=if(row.isMiscCharge) "MISC charge: no inventory received" else
                 "Matched: ${item?.displayName ?: item?.itemName ?: source.text("matchedItemName").ifBlank { "New / unmatched item" }}"
+            val unitValues=ScanUnitCorrection.from(source)
             val values=listOf(source.text("sku"),source.text("description")+"\n"+source.text("upc"),
-                source.text("caseQty"),source.text("bottleQty"),source.text("packSize").ifBlank { source.text("effectiveUnitsPerCase") },
-                source.text("unitCost"),source.text("lineDiscount"),source.text("extendedTotal"),
+                unitValues.totalUnitsReceived?.toString().orEmpty(),unitValues.unitsPerCase?.toString().orEmpty(),
+                unitValues.baseUnitCost?.setScale(4,java.math.RoundingMode.HALF_UP).entryText(),unitValues.discountPerUnit?.setScale(4,java.math.RoundingMode.HALF_UP).entryText(),source.text("extendedTotal"),
                 match+"\n"+row.issues.values.distinct().joinToString("\n"))
             values.forEachIndexed { index,value ->
                 val cell=tableCell(value.ifBlank { "—" },tableWidths[index])
@@ -255,43 +256,55 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         return value
     }
     private fun editLine(row: ScanLineReview) {
-        val source=row.source.deepCopy(); val box=column(); val fields=linkedMapOf<String,EditText>()
-        box.addView(label("Use the printed invoice. Enter 0 when a quantity or discount is zero. Blank values remain unknown. Saved changes recalculate costs."))
-        val fixedNet=source.text("unitCostBasis")=="net_per_unit"
-        fields["caseQty"]=field(box,"Cases received",source.text("caseQty"),true)
-        fields["bottleQty"]=field(box,"Individual units received",source.text("bottleQty"),true)
-        fields["packSize"]=field(box,"Sellable units per case",source.text("packSize").ifBlank { source.text("effectiveUnitsPerCase") },true)
-        fields["unitCost"]=field(box,if(fixedNet) "Net cost per individual unit" else "Printed price",source.text("unitCost"))
-        if(fixedNet) fields["caseCost"]=field(box,"Base price per case (per unit for individual shipments)",source.text("caseCost"))
-        fields["lineDiscount"]=field(box,"Printed discount",source.text("lineDiscount"))
-        fields["extendedTotal"]=field(box,"Printed net line total",source.text("extendedTotal"))
-        val discounts=listOf("unknown" to "Choose discount type", "none" to "No discount", "per_case" to "Discount per case", "per_unit" to "Discount per individual unit", "line_total" to "Discount for the entire line")
-        val discount=choice(box,"How is the discount printed?",discounts,source.text("discountBasis"))
-        val prices=listOf("unknown" to "Choose price type", "gross" to "Before discount", "net" to "After discount")
-        val price=if(!fixedNet) choice(box,"Printed price is",prices,source.text("unitCostBasis")) else null
-        editor("Correct scanned values",box) {
-            for((key,input) in fields) {
-                val integer=key in listOf("caseQty","bottleQty","packSize")
-                val value=number(input,integer)
-                if(value==null) source.add(key,com.google.gson.JsonNull.INSTANCE)
-                else if(integer) source.addProperty(key,value.toInt()) else source.addProperty(key,value)
-            }
-            source.addProperty("discountBasis",if(fixedNet && (source.text("lineDiscount").toDoubleOrNull() ?: 0.0)==0.0) "none" else discounts[discount.selectedItemPosition].first)
-            if(price!=null) source.addProperty("unitCostBasis",prices[price.selectedItemPosition].first)
-            review=api.saveOrderCorrection(invoiceId,row.copy(source=source))
+        val initial=ScanUnitCorrection.from(row.source);val box=column()
+        box.addView(label("Count individual bottles or retail packs received. For example, 1 case of 24 = 24 total units. Costs below are for ONE sellable unit."))
+        val units=field(box,"Total units received",initial.totalUnitsReceived?.toString().orEmpty(),true)
+        val pack=field(box,"Units per case",initial.unitsPerCase?.toString().orEmpty(),true)
+        val base=field(box,"Base cost per unit (before discount)",initial.baseUnitCost.entryText())
+        val discount=field(box,"Discount per unit (0 if none)",initial.discountPerUnit.entryText())
+        val total=field(box,"Net line amount (whole line after discount)",initial.netLineAmount.entryText())
+        fun draft():ScanUnitCorrection {
+            fun whole(input:EditText)=try { input.text.toString().trim().toBigDecimalOrNull()?.intValueExact() } catch(_:ArithmeticException) { null }
+            return ScanUnitCorrection(whole(units),whole(pack),base.text.toString().trim().toBigDecimalOrNull(),discount.text.toString().trim().toBigDecimalOrNull(),total.text.toString().trim().toBigDecimalOrNull())
+        }
+        val helper=column().apply { visibility=View.GONE }
+        lateinit var toggle:Button
+        toggle=action("Invoice shows prices per case?",box) {
+            val open=helper.visibility!=View.VISIBLE;helper.visibility=if(open) View.VISIBLE else View.GONE
+            toggle.text=if(open) "Hide case-price helper" else "Invoice shows prices per case?"
+        }
+        box.addView(helper)
+        helper.addView(label("Enter amounts for ONE case. We divide by units per case for you.",13f))
+        val caseBase=field(helper,"Base price per case","")
+        val caseDiscount=field(helper,"Discount per case (0 if none)","0")
+        val helperError=label("").apply { setTextColor(0xFFB91C1C.toInt()) }
+        action("Convert to unit costs",helper) {
+            val count=draft().unitsPerCase;val cost=caseBase.text.toString().toBigDecimalOrNull();val disc=caseDiscount.text.toString().toBigDecimalOrNull()
+            if(count==null || count !in 1..10000 || cost==null || cost.signum()<0 || disc==null || disc.signum()<0 || disc>cost) helperError.text="Enter units per case, its base price, and discount (0 if none)."
+            else { base.setText(cost.perUnits(count).entryText());discount.setText(disc.perUnits(count).entryText());helper.visibility=View.GONE;toggle.text="Invoice shows prices per case?";helperError.text="" }
+        }
+        helper.addView(helperError)
+        val calculation=label("");box.addView(calculation)
+        fun updateCalculation() {
+            val edit=draft();calculation.text="Calculated line total: " + (edit.calculatedAmount?.setScale(2,java.math.RoundingMode.HALF_UP)?.let { "$"+it } ?: "—") + "\nTotal units × (base cost − discount)"
+        }
+        listOf(units,pack,base,discount,total).forEach { it.doAfterTextChanged { updateCalculation() } };updateCalculation()
+        editor("Edit line ${row.source.text("lineNumber")}",box) {
+            val edit=draft();edit.validate()
+            review=api.saveOrderCorrection(invoiceId,row.copy(source=edit.legacySource(row.source),unitEdit=edit))
         }
     }
     private fun editTotals() {
         val data=review ?: return; val current=data.reconciliation; val box=column()
         box.addView(label("Line total: ${money(current.lineTotal)}\nCalculated total: ${money(current.calculatedTotal)}\n${current.issues.joinToString("\n")}"))
         if(!data.isEditable) { AlertDialog.Builder(this).setTitle("Invoice totals").setView(box).setPositiveButton("Close",null).show(); return }
-        box.addView(label("Enter 0 when none. Additional invoice discount excludes discounts already included on individual lines."))
+        box.addView(label("Enter 0 when none. A blank additional invoice discount defaults to 0. It excludes discounts already included on individual lines."))
         val total=field(box,"Printed invoice total",current.totals.invoiceTotal?.toString().orEmpty())
         val tax=field(box,"Tax",current.totals.tax?.toString().orEmpty())
         val fees=field(box,"Fees (not already included in line totals)",current.totals.fees?.toString().orEmpty())
-        val discount=field(box,"Additional invoice discount",current.totals.invoiceDiscount?.toString().orEmpty())
+        val discount=field(box,"Additional invoice discount",(current.totals.invoiceDiscount ?: 0.0).toString())
         editor("Check invoice totals",box) {
-            val updated=api.updateScanTotals(data.batchId,ScanTotals(number(total),number(tax),number(fees),number(discount)))
+            val updated=api.updateScanTotals(data.batchId,ScanTotals(number(total),number(tax),number(fees),number(discount) ?: 0.0))
             review=data.copy(reconciliation=updated)
         }
     }
