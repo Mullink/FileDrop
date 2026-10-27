@@ -44,7 +44,7 @@
 
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Shipped Qty" android:textSize="10sp" android:textColor="#888888" />
-            <EditText android:id="@+id/editShippedQty" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+            <EditText android:id="@+id/editShippedQty" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberSigned" />
         </LinearLayout>
 
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">

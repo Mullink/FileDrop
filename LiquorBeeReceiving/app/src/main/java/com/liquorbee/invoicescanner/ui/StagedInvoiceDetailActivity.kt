@@ -174,7 +174,7 @@ class StagedInvoiceDetailActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Add") { _, _ ->
                 val isBottles = radioGroup.checkedRadioButtonId != radioCases.id
-                val qty = editQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val qty = editQty.text.toString().toIntOrNull() ?: return@setPositiveButton
                 val enteredCost = editUnitCost.text.toString().toDoubleOrNull()
                 val price = editPrice.text.toString().toDoubleOrNull()
                 // Bottles mode: entered cost IS the per-unit cost already. Cases mode: entered cost

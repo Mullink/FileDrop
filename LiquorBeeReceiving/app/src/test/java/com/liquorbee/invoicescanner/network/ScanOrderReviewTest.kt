@@ -17,7 +17,7 @@ class ScanOrderReviewTest {
         assertEquals("1",row.source.text("caseQty"))
         assertTrue(row.needsReview);assertTrue(row.isMiscCharge)
     }
-    @Test fun pricingStepRequiresRealRowsNoIssuesAndBalancedTotals() {
+    @Test fun pricingStepRequiresRealRowsAndNoLineIssuesButTotalsAreOptional() {
         val row=Gson().fromJson(json,ScanLineReview::class.java)
         val clean=row.copy(issues=emptyMap())
         val totals=ScanReconciliation(ScanTotals(100.0,0.0,0.0,0.0),100.0,100.0,0.0,true,emptyList())
@@ -25,8 +25,8 @@ class ScanOrderReviewTest {
         assertTrue(review.readyForPricing)
         assertFalse(review.copy(lines=listOf(row)).readyForPricing)
         assertFalse(review.copy(lines=emptyList()).readyForPricing)
-        assertFalse(review.copy(reconciliation=totals.copy(isBalanced=false)).readyForPricing)
-        assertFalse(review.copy(reconciliation=totals.copy(issues=listOf("Check fee"))).readyForPricing)
+        assertTrue(review.copy(reconciliation=totals.copy(isBalanced=false)).readyForPricing)
+        assertTrue(review.copy(reconciliation=totals.copy(issues=listOf("Check fee"))).readyForPricing)
     }
     @Test fun successfulEmptyResponseIsAccepted() { Response.success<Unit>(null).requireSuccess() }
     @Test fun serverRejectionIsNotReportedAsSuccess() {

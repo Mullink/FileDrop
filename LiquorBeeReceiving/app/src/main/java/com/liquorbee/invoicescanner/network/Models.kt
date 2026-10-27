@@ -235,7 +235,8 @@ data class PurchaseOrderLineDto(
     val originalShippedCases: Int?,
     val currentQty: Int?,
     val needsDoubleCheck: Boolean = false,
-    val doubleCheckReason: String? = null
+    val doubleCheckReason: String? = null,
+    val isReturn: Boolean = false
 )
 
 // Manual PO creation - mirrors pos-purchase-orders.ts's manualPO* flow (GetItemsForManualPO,

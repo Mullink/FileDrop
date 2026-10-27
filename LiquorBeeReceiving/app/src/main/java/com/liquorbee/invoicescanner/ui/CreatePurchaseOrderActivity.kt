@@ -562,7 +562,11 @@ class CreatePurchaseOrderActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Add") { _, _ ->
                 val isBottles = radioGroup.checkedRadioButtonId != radioCases.id
-                val qty = editQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val qty = editQty.text.toString().toIntOrNull()
+                if (qty == null) {
+                    editQty.error = "Enter a whole quantity; negative quantities deduct stock."
+                    return@setPositiveButton
+                }
                 val enteredCost = editUnitCost.text.toString().toDoubleOrNull() ?: item.unitCost
                 val price = editPrice.text.toString().toDoubleOrNull() ?: item.currentUnitPrice
                 // Bottles mode pins unitsPerCase to 1, exactly like setManualPOUnitMode() - the

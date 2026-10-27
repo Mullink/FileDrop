@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.liquorbee.invoicescanner.databinding.ItemCreatePoLineBinding
 import com.liquorbee.invoicescanner.network.PurchaseOrderLineDto
+import com.liquorbee.invoicescanner.network.applyReceivedQuantity
 
 /**
  * Editable line list for CreatePurchaseOrderActivity - mirrors the web's
@@ -56,8 +57,8 @@ class CreatePoLineAdapter(
         renderTotal(b, line)
 
         holder.casesWatcher = watcherFor { text ->
-            line.shippedCases = text.toIntOrNull()?.coerceAtLeast(0) ?: 0
-            line.shippedUnits = (line.shippedCases ?: 0) * (line.unitsPerCase ?: 1)
+            val qty = text.toIntOrNull() ?: return@watcherFor
+            applyReceivedQuantity(line, qty, byUnits = false)
             renderTotal(b, line)
             onLineChanged()
         }.also { b.editCases.addTextChangedListener(it) }

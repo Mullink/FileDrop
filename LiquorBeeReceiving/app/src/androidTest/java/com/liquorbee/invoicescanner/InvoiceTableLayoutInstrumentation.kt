@@ -60,7 +60,26 @@ class InvoiceTableLayoutInstrumentation : Instrumentation() {
                 check(corrected==1L) { "Name did not open the matching correction row" }
                 bound.editCurrentUnitPrice.setText("22.49")
                 check(lines[0].currentUnitPrice==22.49) { "Price edit did not update original invoice row" }
-                check(!bound.editQty.isEnabled && !bound.editUnitCost.isEnabled)
+                check(bound.editQty.isEnabled && !bound.editUnitCost.isEnabled)
+                check(bound.editQty.inputType and android.text.InputType.TYPE_NUMBER_FLAG_SIGNED != 0)
+                bound.editQty.setText("-")
+                check(bound.editQty.text.toString()=="-") { "Leading minus was erased" }
+                bound.editQty.setText("-2")
+                check(lines[0].shippedCases==-2 && lines[0].shippedUnits==-4) { "Signed staged quantity was lost" }
+            }
+            runOnMainSync {
+                val manual=lines[0].copy(unitsPerCase=12,shippedCases=1,shippedUnits=12)
+                val adapter=com.liquorbee.invoicescanner.ui.CreatePoLineAdapter(mutableListOf(manual),{}, {})
+                val holder=adapter.onCreateViewHolder(b.recyclerLines,0)
+                adapter.onBindViewHolder(holder,0)
+                check(holder.binding.editCases.inputType and android.text.InputType.TYPE_NUMBER_FLAG_SIGNED != 0)
+                holder.binding.editCases.setText("-3")
+                check(manual.shippedCases==-3 && manual.shippedUnits==-36) { "Manual case credit was clamped" }
+                holder.binding.editUnitsPerCase.setText("1")
+                holder.binding.editCases.setText("-5")
+                check(manual.shippedCases==-5 && manual.shippedUnits==-5 && manual.caseCost!!>0) { "Manual bottle credit was lost" }
+                val json=Gson().toJsonTree(manual).asJsonObject
+                check(json["shippedUnits"].asInt==-5) { "Request lost the negative quantity" }
             }
             screenshot("invoice-table-phone.png")
             runOnMainSync { b.recyclerLines.scrollBy(0,900); b.invoiceTableScroll.scrollTo(850,0) }

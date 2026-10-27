@@ -132,8 +132,8 @@ class ScanOrderReviewActivity : AppCompatActivity() {
         val totals=data.reconciliation
         summary.text=if (!data.isEditable) "This order is no longer staged. Saved scan details are shown below."
             else if(data.readyForPricing) "Ready for receiving. Return to the order to save retail prices and receive."
-            else "$count item(s) need review. Correct highlighted values, confirm item matches, then check the invoice totals."
-        totalsButton.text=if(totals.isBalanced) "Totals match • ${money(totals.calculatedTotal)}" else "Check totals • difference ${money(totals.difference)}"
+            else "$count item(s) need review. Correct highlighted values, confirm item matches, then save any remaining edits. Totals review is optional."
+        totalsButton.text=if(totals.isBalanced) "Totals match • ${money(totals.calculatedTotal)}" else "Review totals (optional) • difference ${money(totals.difference)}"
         totalsButton.isEnabled=!busy
         renderRows()
         if(!busy && pendingLineId!=0L) {

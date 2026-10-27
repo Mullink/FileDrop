@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
 // validation block in saveChanges (requires the markup-rule lookups the web page has already
 // loaded), price-history/margin-slider editing, printLabels, and the Undo Delete/Undo Error
 // variants (Mark as Deleted/Mark as Error themselves ARE wired up, via the More Options menu). See
-// the negative-quantity guard (hasNegativeReceiveQuantities) which IS ported exactly.
+// signed quantity edits, which are saved before inventory receiving.
 class PurchaseOrderDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPurchaseOrderDetailBinding
@@ -225,7 +225,11 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Add") { _, _ ->
                 val isBottles = radioGroup.checkedRadioButtonId != radioCases.id
-                val qty = editQty.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val qty = editQty.text.toString().toIntOrNull()
+                if (qty == null) {
+                    editQty.error = "Enter a whole quantity; negative quantities deduct stock."
+                    return@setPositiveButton
+                }
                 val enteredCost = editUnitCost.text.toString().toDoubleOrNull()
                 val price = editPrice.text.toString().toDoubleOrNull()
                 val unitsPerCase = if (isBottles) 1 else (editUnitsPerCase.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 1)
@@ -301,7 +305,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                         reviewLineIds = review.lines.filter { it.needsReview }.map { it.lineId }.toSet()
                         val count = reviewLineIds.size
                         scanReady = review.isEditable && review.readyForPricing
-                        binding.textScanReview.text = if(scanReady) "Scan checked. Save retail price changes, then receive." else "$count item(s) need review. Check scanned values and invoice totals before receiving."
+                        binding.textScanReview.text = if(scanReady) "Scan checked. Save quantity or retail price changes, then receive." else "$count item(s) need review. Check highlighted scanned values before receiving. Totals review is optional."
                     } catch(e: kotlinx.coroutines.CancellationException) { throw e }
                     catch(e: Exception) { binding.textScanReview.text = "Scan review could not load: " + apiError(e) }
                 }
@@ -422,10 +426,6 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
             original.currentUnitPrice != line.currentUnitPrice || original.unitCost != line.unitCost || original.caseCost != line.caseCost
     }
 
-    private fun hasNegativeReceiveQuantities(): Boolean = lines.any {
-        (it.shippedCases ?: 0) < 0 || (it.shippedUnits ?: 0) < 0
-    }
-
     private fun refreshButtonStates() {
         val h = header
         val isStaged = h?.status == "STAGED"
@@ -444,10 +444,6 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     }
 
     private fun saveChanges() {
-        if (hasNegativeReceiveQuantities()) {
-            showMessage("Shipped cases/units can't be negative.", isError = true)
-            return
-        }
         saving = true
         refreshButtonStates()
         lifecycleScope.launch {
@@ -461,7 +457,7 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
                     pendingRemovedLineIds.remove(lineId)
                 }
                 pendingRemovedLineIds.clear()
-                val changed = if(isScanned) lines.filter { originalLineSnapshots[it.lineId]?.currentUnitPrice != it.currentUnitPrice } else lines
+                val changed = lines // Include quantity edits on scanned orders as well as retail prices.
                 if(changed.isNotEmpty()) api.updateStagedPurchaseOrderDetails(changed).requireSuccess()
                 saving = false
                 showMessage("Changes saved.", isError = false)
@@ -485,10 +481,6 @@ class PurchaseOrderDetailActivity : AppCompatActivity() {
     }
 
     private fun receiveOrder() {
-        if (hasNegativeReceiveQuantities()) {
-            showMessage("Shipped cases/units can't be negative.", isError = true)
-            return
-        }
         receiving = true
         refreshButtonStates()
         lifecycleScope.launch {

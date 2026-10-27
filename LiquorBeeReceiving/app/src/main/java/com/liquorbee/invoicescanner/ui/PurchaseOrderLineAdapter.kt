@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.liquorbee.invoicescanner.databinding.ItemPurchaseOrderLineBinding
 import com.liquorbee.invoicescanner.network.PurchaseOrderLineDto
+import com.liquorbee.invoicescanner.network.applyReceivedQuantity
 
 /**
  * Mirrors pos-purchase-orders.ts's receive-line editing (updateShippedUnits/onManualUnitsChange)
@@ -91,7 +92,7 @@ class PurchaseOrderLineAdapter(
         renderPricing(b, line)
 
         val enabled = !readOnly
-        b.editQty.isEnabled = enabled && !scanned
+        b.editQty.isEnabled = enabled
         b.editUnitCost.isEnabled = enabled && !scanned
         b.editCurrentUnitPrice.isEnabled = enabled
 
@@ -105,15 +106,8 @@ class PurchaseOrderLineAdapter(
         }
 
         holder.qtyWatcher = watcherFor { text ->
-            val qty = text.toIntOrNull()
-            if (isBottles) {
-                // onManualUnitsChange - deliberately does NOT touch shippedCases, matching the web.
-                line.shippedUnits = qty
-            } else {
-                // updateShippedUnits - Cases entered directly, Units autofilled from Cases x unitsPerCase.
-                line.shippedCases = qty
-                line.shippedUnits = (qty ?: 0) * (line.unitsPerCase ?: 0)
-            }
+            val qty = text.toIntOrNull() ?: return@watcherFor
+            applyReceivedQuantity(line, qty, isBottles)
             b.textShippedUnits.text = (line.shippedUnits ?: 0).toString()
             onChanged()
         }.also { b.editQty.addTextChangedListener(it) }
