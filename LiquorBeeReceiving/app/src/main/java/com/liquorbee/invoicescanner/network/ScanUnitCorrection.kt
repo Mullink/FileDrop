@@ -9,6 +9,12 @@ data class ScanUnitCorrection(val totalUnitsReceived: Int?, val unitsPerCase: In
     val baseUnitCost: BigDecimal?, val discountPerUnit: BigDecimal?, val netLineAmount: BigDecimal?) {
     val calculatedAmount: BigDecimal? get() = if(totalUnitsReceived==null || baseUnitCost==null || discountPerUnit==null) null
         else (baseUnitCost-discountPerUnit)*totalUnitsReceived.toBigDecimal()
+    val warning:String? get() {
+        val calculated=calculatedAmount ?: return null
+        val printed=netLineAmount ?: return null
+        val tolerance=BigDecimal("0.02")+(totalUnitsReceived ?: 0).toBigDecimal()*BigDecimal("0.01")
+        return if((calculated-printed).abs()>tolerance) "Printed amount differs. You can save; check against the invoice." else null
+    }
     fun validate() {
         require(totalUnitsReceived!=null && totalUnitsReceived in 0..99999) { "Enter total units received as a whole number from 0 to 99,999." }
         require(unitsPerCase!=null && unitsPerCase in 1..10000) { "Enter units per case as a whole number from 1 to 10,000." }
@@ -17,9 +23,6 @@ data class ScanUnitCorrection(val totalUnitsReceived: Int?, val unitsPerCase: In
         require(discountPerUnit<=baseUnitCost) { "Discount per unit cannot exceed base cost per unit." }
         require(netLineAmount!=null && netLineAmount.signum()>=0) { "Enter the net amount printed for this whole line." }
         require(listOf(baseUnitCost,discountPerUnit,netLineAmount).all { it<=BigDecimal("99999999") }) { "An amount exceeds the supported range." }
-        require((calculatedAmount!!-netLineAmount).abs()<=BigDecimal("0.02")) {
-            "Calculated total is $${calculatedAmount!!.setScale(2,RoundingMode.HALF_UP)}; the invoice line says $${netLineAmount.setScale(2,RoundingMode.HALF_UP)}. Check total units and unit costs."
-        }
         val byCase=totalUnitsReceived>0 && unitsPerCase>1 && totalUnitsReceived%unitsPerCase==0
         require(baseUnitCost*(if(byCase) unitsPerCase else 1).toBigDecimal()<=BigDecimal("99999999")) { "The resulting case cost exceeds the supported range." }
     }
@@ -54,7 +57,7 @@ data class ScanUnitCorrection(val totalUnitsReceived: Int?, val unitsPerCase: In
             }
             val divisor=if(byCase) pack else 1
             val base=if(divisor==null || divisor<=0) null else when(source.text("unitCostBasis")) {
-                "net_per_unit" -> amount("caseCost")?.perUnits(divisor)
+                "net_per_unit", "manual_per_unit" -> amount("caseCost")?.perUnits(divisor)
                 "gross" -> amount("unitCost")?.perUnits(divisor)
                 "net" -> if(discount!=null) amount("unitCost")?.perUnits(divisor)?.plus(discount) else null
                 else -> null

@@ -22,6 +22,8 @@ interface HennyAdminApi {
     suspend fun getOrderCorrections(@Path("invoiceId") invoiceId: Long): ScanOrderReview
     @POST("InvoiceOcrScan/SaveOrderCorrection/{invoiceId}")
     suspend fun saveOrderCorrection(@Path("invoiceId") invoiceId: Long, @Body edit: ScanLineReview): ScanOrderReview
+    @POST("InvoiceOcrScan/SaveOrderCorrection/{invoiceId}")
+    suspend fun saveSimpleOrderCorrection(@Path("invoiceId") invoiceId: Long, @Body edit: ScanCorrectionSave): ScanOrderReview
     @GET("InvoiceOcrScan/SearchOrderItems/{invoiceId}")
     suspend fun searchOrderItems(@Path("invoiceId") invoiceId: Long, @Query("query") query: String): List<QuanticInventorySearchResultDto>
     @POST("InvoiceOcrScan/ChangeOrderItem/{invoiceId}/{lineId}")

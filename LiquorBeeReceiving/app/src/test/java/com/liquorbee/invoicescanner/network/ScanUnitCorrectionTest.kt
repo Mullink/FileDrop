@@ -21,10 +21,21 @@ class ScanUnitCorrectionTest {
         assertEquals("0",source.text("caseQty"));assertEquals("30",source.text("bottleQty"));assertEquals("24",source.text("packSize"))
         assertEquals(0,source.text("caseCost").toBigDecimal().compareTo(BigDecimal("2.5")))
     }
-    @Test fun rejectsIncorrectExtensionAndUnknownPack() {
-        for(value in listOf(edit(total="1291.68"),edit().copy(unitsPerCase=null),edit(discount="3"),edit().copy(baseUnitCost=null))) {
+    @Test fun rejectsUnknownPackAndInvalidCosts() {
+        for(value in listOf(edit().copy(unitsPerCase=null),edit(discount="3"),edit().copy(baseUnitCost=null))) {
             try { value.validate();fail("Expected validation failure") } catch(_:IllegalArgumentException) {}
         }
+    }
+    @Test fun amountMismatchIsAWarningLikeWebReview() {
+        val value=edit(total="1291.68");value.validate();assertNotNull(value.warning)
+        assertNull(edit(total="53.83").warning)
+    }
+    @Test fun atomicItemAndCostSaveCarriesVersionWithoutOldSource() {
+        val payload=Gson().toJsonTree(ScanCorrectionSave(12,"version-2",edit(),"selected-product")).asJsonObject
+        assertEquals("selected-product",payload["selectedItemId"].asString)
+        assertEquals("version-2",payload["version"].asString)
+        assertEquals(24,payload["unitEdit"].asJsonObject["totalUnitsReceived"].asInt)
+        assertFalse(payload.has("source"))
     }
     @Test fun readsPerCaseDiscountAndRetailPacks() {
         val source=JsonParser.parseString("""{"caseQty":1,"bottleQty":0,"packSize":6,"caseCost":37.50,"unitCost":5.14,"lineDiscount":6.66,"extendedTotal":30.84,"unitCostBasis":"net_per_unit","discountBasis":"per_case"}""").asJsonObject

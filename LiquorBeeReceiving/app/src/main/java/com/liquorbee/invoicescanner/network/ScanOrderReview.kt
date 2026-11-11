@@ -9,7 +9,9 @@ data class ScanOrderReview(val isEditable: Boolean, val batchId: String,
     val readyForPricing: Boolean get() = lines.isNotEmpty() && lines.none { it.needsReview }
 }
 data class ScanLineReview(val lineId: Long, val itemConfirmed: Boolean, val version: String,
-    val source: JsonObject, val issues: Map<String,String>, val isMiscCharge: Boolean = false, val unitEdit: ScanUnitCorrection? = null) {
+    val source: JsonObject, val issues: Map<String,String>, val isMiscCharge: Boolean = false, val unitEdit: ScanUnitCorrection? = null,
+    val itemId:String?=null,val itemCode:String?=null,val itemName:String?=null,val itemUpc:String?=null,
+    val isNewItem:Boolean=false,val canEditIdentifiers:Boolean?=null,val isReturn:Boolean=false) {
     val needsReview: Boolean get() = issues.isNotEmpty()
 }
 data class ScanReconciliation(val totals: ScanTotals, val lineTotal: Double?, val calculatedTotal: Double?,
@@ -26,3 +28,15 @@ fun apiError(error: Exception): String {
     } else error.message ?: "Unable to connect. Please try again."
 }
 fun JsonObject.text(key: String): String = get(key)?.takeUnless { it.isJsonNull }?.asString ?: ""
+
+data class ScanCorrectionSave(val lineId:Long,val version:String,val unitEdit:ScanUnitCorrection?,
+    val selectedItemId:String?=null,val barcode:String?=null,val sku:String?=null)
+fun ScanLineReview.confirmChoice(fallback:PurchaseOrderLineDto?):ScanItemChoice? {
+    if(isMiscCharge)return null
+    val id=itemId ?: fallback?.itemId
+    val upc=itemUpc ?: fallback?.upcCode
+    if(upc.isNullOrBlank())return null
+    if(!id.isNullOrBlank())return ScanItemChoice(id)
+    val code=itemCode ?: fallback?.itemCode;val name=itemName ?: fallback?.itemName
+    return if(!code.isNullOrBlank() && !name.isNullOrBlank())ScanItemChoice("",ScanNewItem(code,name,upc)) else null
+}
