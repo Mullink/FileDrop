@@ -20,6 +20,8 @@ import retrofit2.http.Query
 interface HennyAdminApi {
     @GET("InvoiceOcrScan/GetOrderCorrections/{invoiceId}")
     suspend fun getOrderCorrections(@Path("invoiceId") invoiceId: Long): ScanOrderReview
+    @POST("InvoiceOcrScan/RemoveOrderItem/{invoiceId}/{lineId}")
+    suspend fun removeOrderItem(@Path("invoiceId") invoiceId: Long, @Path("lineId") lineId: Long, @Body removal: ScanItemRemoval): ScanOrderReview
     @POST("InvoiceOcrScan/SaveOrderCorrection/{invoiceId}")
     suspend fun saveOrderCorrection(@Path("invoiceId") invoiceId: Long, @Body edit: ScanLineReview): ScanOrderReview
     @POST("InvoiceOcrScan/SaveOrderCorrection/{invoiceId}")

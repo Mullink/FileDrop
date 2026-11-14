@@ -17,6 +17,7 @@ data class ScanLineReview(val lineId: Long, val itemConfirmed: Boolean, val vers
 data class ScanReconciliation(val totals: ScanTotals, val lineTotal: Double?, val calculatedTotal: Double?,
     val difference: Double?, val isBalanced: Boolean, val issues: List<String>)
 data class ScanTotals(val invoiceTotal: Double?, val tax: Double?, val fees: Double?, val invoiceDiscount: Double?)
+data class ScanItemRemoval(val version: String)
 data class ScanItemChoice(val itemId: String, val newItem: ScanNewItem? = null)
 data class ScanNewItem(val itemCode: String?, val itemName: String?, val upcCode: String?)
 fun Response<Unit>.requireSuccess() { if (!isSuccessful) throw HttpException(this) }

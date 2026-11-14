@@ -163,6 +163,12 @@ class ScanOrderReviewActivity : AppCompatActivity() {
             } else actions.addView(label(if(row.isMiscCharge) "Charge only" else if(row.needsReview) "Check values" else "✓ Checked",12f),LinearLayout.LayoutParams(0,-2,1f))
             val edit=action(if(review?.isEditable==true) "Edit item" else "Details",actions) { if(review?.isEditable==true)editLine(row) else showDetails(row) }
             edit.layoutParams=LinearLayout.LayoutParams(dp(104),dp(48));edit.textSize=12f;edit.isEnabled=!busy
+            if(review?.isEditable==true) actions.addView(ImageButton(this@ScanOrderReviewActivity).apply {
+                setImageResource(android.R.drawable.ic_menu_delete)
+                imageTintList=android.content.res.ColorStateList.valueOf(0xFFB42318.toInt())
+                background=null;contentDescription="Remove item from review: "+source.text("description")
+                isEnabled=!busy;setOnClickListener { removeItem(row) }
+            },LinearLayout.LayoutParams(dp(48),dp(48)))
         }
     }
     private fun showDetails(row:ScanLineReview) {
@@ -285,6 +291,18 @@ class ScanOrderReviewActivity : AppCompatActivity() {
             val updated=api.updateScanTotals(data.batchId,ScanTotals(number(total),number(tax),number(fees),number(discount) ?: 0.0))
             review=data.copy(reconciliation=updated)
         }
+    }
+    private fun removeItem(row: ScanLineReview) {
+        if(busy || review?.isEditable!=true) return
+        val name=row.source.text("description").ifBlank { products[row.lineId]?.itemName ?: "this item" }
+        AlertDialog.Builder(this).setTitle("Remove item from review?")
+            .setMessage("$name\n\nThis item will be removed from the staged invoice and will not be received into inventory. The original scan and printed invoice total are kept.")
+            .setNegativeButton("Cancel",null).setPositiveButton("Remove item") { _,_ ->
+                if(review?.isEditable==true) runAction {
+                    review=api.removeOrderItem(invoiceId,row.lineId,ScanItemRemoval(row.version))
+                    products=products - row.lineId
+                }
+            }.show()
     }
     private fun confirmItem(row: ScanLineReview) {
         if(busy || review?.isEditable!=true || row.itemConfirmed)return

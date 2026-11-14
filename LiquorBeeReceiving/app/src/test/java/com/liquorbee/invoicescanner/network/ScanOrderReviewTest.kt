@@ -7,6 +7,15 @@ import retrofit2.Response
 import retrofit2.HttpException
 
 class ScanOrderReviewTest {
+    @Test fun removalUsesTheVersionedReviewContract() {
+        assertEquals("{\"version\":\"saved-version\"}",Gson().toJson(ScanItemRemoval("saved-version")))
+        val method=HennyAdminApi::class.java.methods.single { it.name=="removeOrderItem" }
+        assertEquals("InvoiceOcrScan/RemoveOrderItem/{invoiceId}/{lineId}",method.getAnnotation(retrofit2.http.POST::class.java)!!.value)
+        val response=Gson().fromJson("""{"isEditable":true,"batchId":"batch","lines":[],"reconciliation":{"totals":{"invoiceTotal":28063.75},"issues":[],"isBalanced":true}}""",ScanOrderReview::class.java)
+        assertTrue(response.lines.isEmpty());assertEquals(28063.75,response.reconciliation.totals.invoiceTotal!!,0.001)
+    }
+
+
     private val json="""{"lineId":53030,"version":"saved-version","itemConfirmed":false,"isMiscCharge":true,"issues":{"item":"Confirm this item"},"source":{"caseQty":1,"bottleQty":0,"packSize":24,"unitCostBasis":"net_per_unit","extendedTotal":217.2,"futureField":"keep me"}}"""
     @Test fun correctionsKeepServerVersionUnknownFieldsAndOriginalValues() {
         val row=Gson().fromJson(json,ScanLineReview::class.java)
