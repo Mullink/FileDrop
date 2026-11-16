@@ -18,8 +18,8 @@ android {
         targetSdk = 33
         // Bump both on every build that gets pushed to the GitHub FileDrop repo - versionCode is
         // what UpdateChecker compares against version.txt there to detect an out-of-date install.
-        versionCode = 39
-        versionName = "2.28"
+        versionCode = 40
+        versionName = "2.29"
         testInstrumentationRunner = providers.gradleProperty("testRunner").getOrElse("androidx.test.runner.AndroidJUnitRunner")
     }
 

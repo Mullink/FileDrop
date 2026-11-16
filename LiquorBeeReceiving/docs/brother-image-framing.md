@@ -27,3 +27,11 @@ Validation: 42 JVM tests and three Android tests passed. The Android tests exerc
 ## 2.28: full-page thumbnail
 
 The store confirmed the page was visible in Draw but the small thumbnail appeared blank. The thumbnail ImageView still used `centerCrop`, which enlarges a narrow receipt until it fills a conventional page-shaped frame and hides both ends. A blank middle section could fill the entire thumbnail. The ImageView now uses `fitCenter` to show the whole page. The decoder and stored scan image are unchanged. The Android regression renders the actual thumbnail view and checks that both header and footer are visible; switching that same fixture back to `centerCrop` reproduces the blank preview.
+
+## 2.29: discard empty scan length before reducing resolution
+
+Review of customer 295 uploads 473 and 474 found the same physical invoice scanned twice into one batch. Both saved JPEGs are 483 by 4200 pixels; paper occupies about half the width and the top quarter, with gray scanner bed beside it and a black suffix below it. Scaling the entire manual 72-inch scan window made the invoice text unnecessarily small. The missing invoice number was accompanied by missing SKUs and unreconciled extracted amounts, so inserting an invoice number alone would not repair this batch.
+
+The scanner decoder now inspects a bounded 1536-pixel preview to locate a substantial contiguous black suffix, retains a safety margin at the edge, and decodes the retained region from the original JPEG. It chooses the memory-safe sample size using that region instead of the unused scan window. It leaves white paper, gray margins, internal black gaps and all-black scans alone. The 12-million-pixel and 8192-edge allocation limits remain unchanged, as do USB feed and JPEG-completion checks. Existing uploaded images have already lost detail and need a fresh scan; no batch values are inferred or changed by this fix.
+
+The synthetic padded-invoice fixture models a 2550 by 21600 scan with 5500 rows of paper/bed. Tests require a 1275-pixel-wide final upload (over 2.6 times the old uploaded width), intact header/footer, a retained gray margin, bounded allocation, and unchanged full-length/non-padding scans. No store invoice images are committed as test assets.

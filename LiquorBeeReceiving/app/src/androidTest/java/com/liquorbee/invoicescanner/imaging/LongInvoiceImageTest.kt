@@ -22,6 +22,43 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LongInvoiceImageTest {
+    @Test fun paddedScanKeepsTextResolutionAndFooterWithinMemoryLimit() {
+        val bytes = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("padded-invoice-2550x21600.jpg").use { it.readBytes() }
+        val bitmap = ScannerBitmapDecoder.decode(bytes)
+        try {
+            // The old full-canvas decode/upload shrank the same printed area to ~230 px.
+            assertEquals(1275, bitmap.width)
+            assertTrue(bitmap.height in 2750..2800)
+            assertTrue(bitmap.allocationByteCount <= BitmapDecodePolicy.MAX_PIXELS * 4)
+            assertTrue("Header retained", Color.red(bitmap.getPixel(300, 25)) < 32)
+            assertTrue("Footer retained", Color.red(bitmap.getPixel(300, 2710)) < 32)
+            assertTrue("Gray margin must not be mistaken for empty black padding",
+                Color.red(bitmap.getPixel(1000, 1000)) in 100..180)
+            val processed = ImagePipeline.process(bitmap, 4200, 95)
+            val upload = BitmapFactory.decodeByteArray(processed.bytes, 0, processed.bytes.size)!!
+            try {
+                assertEquals(1275, upload.width)
+                assertEquals(bitmap.height, upload.height)
+                assertTrue(Color.red(upload.getPixel(300, 2710)) < 32)
+            } finally { upload.recycle() }
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun blackOrUncertainScansAreNotDestructivelyCropped() {
+        for (background in listOf(Color.BLACK, Color.DKGRAY, Color.WHITE)) {
+            val original = Bitmap.createBitmap(100, 2000, Bitmap.Config.ARGB_8888)
+            original.eraseColor(background)
+            // A real light footer below a large black gap must keep the whole page.
+            if (background == Color.BLACK) original.setPixel(50, 1998, Color.WHITE)
+            val output = java.io.ByteArrayOutputStream()
+            original.compress(Bitmap.CompressFormat.PNG, 100, output)
+            val bitmap = ScannerBitmapDecoder.decode(output.toByteArray())
+            try { assertEquals(2000, bitmap.height) }
+            finally { bitmap.recycle(); original.recycle() }
+        }
+    }
+
     private fun fixture() = InstrumentationRegistry.getInstrumentation().context.assets
         .open("long-invoice-2550x21600.jpg").use { it.readBytes() }
 
