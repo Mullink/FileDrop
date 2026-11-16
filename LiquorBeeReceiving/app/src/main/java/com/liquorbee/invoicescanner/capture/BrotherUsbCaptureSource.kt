@@ -13,13 +13,15 @@ import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.os.Build
+import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -90,15 +92,20 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
             ensureConnected()
             val jpegBytes = runScanSequence()
             log("Decoding ${jpegBytes.size} JPEG bytes as a bitmap...")
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, bounds)
+            log("JPEG dimensions: ${bounds.outWidth}x${bounds.outHeight}.")
             val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
                 ?: run {
                     log("BitmapFactory.decodeByteArray returned null.")
-                    return@withLock CaptureResult.Failure("The DS-640 returned data that could not be decoded as an image.").also { lastAttemptLog = trace.toString() }
+                    throw IllegalStateException("The DS-640 returned data that could not be decoded as an image.")
                 }
             log("Bitmap decoded: ${bitmap.width}x${bitmap.height}.")
             lastAttemptLog = trace.toString()
             CaptureResult.Success(CapturedPage(bitmap))
         } catch (e: CancellationException) {
+            closeConnection()
+            lastAttemptLog = trace.toString()
             throw e
         } catch (e: Exception) {
             log("FAILED: ${e::class.simpleName}: ${e.message}")
@@ -276,93 +283,22 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
         return body + 0x80.toByte()
     }
 
-    // A short (non-zero) read used to be treated as "that was the last chunk," based on the one
-    // reference (Windows) capture where that happened to be true. Confirmed on real hardware this
-    // was wrong: the scanner's feed motor runs to completion regardless, but our host stopped
-    // reading (and returned) before all the real image data arrived, producing a short image even
-    // though the full page was fed. A short read is NOT a reliable end-of-stream signal in
-    // general - it just means the device batched that particular transfer smaller, which can
-    // happen mid-stream on longer pages too, not only at the true end.
-    //
-    // Fix: never end the stream on a short-but-nonzero read - only on sustained silence
-    // (MAX_CONSECUTIVE_EMPTY_READS truly empty reads in a row). Deliberately NOT scanning for the
-    // JPEG end-of-image marker (FF D9) here either - that approach was tried and caused the
-    // scanner to physically jam on real hardware for reasons never fully isolated; reading until
-    // sustained silence is a much smaller, lower-risk change. Any trailing non-image status bytes
-    // the device sends after the real image data (confirmed harmless in the reference capture -
-    // a handful of small packets) just become harmless trailing bytes after the JPEG's own FF D9
-    // in the buffer, which every JPEG decoder (including BitmapFactory) ignores.
-    private fun readJpegStream(connection: UsbDeviceConnection, endpoint: UsbEndpoint): ByteArray {
-        val image = ByteArrayOutputStream()
-        val buffer = ByteArray(READ_CHUNK_SIZE)
-        var sawJpegStart = false
-        var emptyReadsBeforeStart = 0
-        var nonEmptyReadsBeforeStart = 0
-        val deadline = System.currentTimeMillis() + PRE_IMAGE_TIMEOUT_MS
-
-        // Small status packets (a few bytes) are interleaved between big image chunks in the
-        // captured session - skip anything before the JPEG SOI marker (FF D8).
-        while (!sawJpegStart) {
-            if (System.currentTimeMillis() > deadline) {
-                throw IllegalStateException(
-                    "Timed out after ${PRE_IMAGE_TIMEOUT_MS / 1000}s waiting for image data " +
-                        "($emptyReadsBeforeStart empty + $nonEmptyReadsBeforeStart non-empty reads, " +
-                        "none starting with the JPEG marker). The scanner likely never started " +
-                        "feeding - check paper is loaded and the feeder tray is seated correctly."
-                )
-            }
-
-            val read = connection.bulkTransfer(endpoint, buffer, buffer.size, TRANSFER_TIMEOUT_MS)
-
-            if (read <= 0) {
-                emptyReadsBeforeStart++
-                continue
-            }
-
-            if (read < 2 || buffer[0] != 0xFF.toByte() || buffer[1] != 0xD8.toByte()) {
-                nonEmptyReadsBeforeStart++
-                log("Pre-image read: $read bytes, not a JPEG start (starts ${hexPrefix(buffer, read)})")
-                continue
-            }
-
-            sawJpegStart = true
-            log("JPEG start marker found after $emptyReadsBeforeStart empty + $nonEmptyReadsBeforeStart non-empty reads.")
-            image.write(buffer, 0, read)
-        }
-
-        // Keep reading regardless of chunk size - only sustained silence ends the stream.
-        var consecutiveEmptyReads = 0
-        var chunkCount = 0
-        var lastRealDataAtMs = System.currentTimeMillis()
-        while (true) {
-            val read = connection.bulkTransfer(endpoint, buffer, buffer.size, TRANSFER_TIMEOUT_MS)
-
-            if (read <= 0) {
-                consecutiveEmptyReads++
-                if (consecutiveEmptyReads >= MAX_CONSECUTIVE_EMPTY_READS) {
-                    log("Giving up after $consecutiveEmptyReads consecutive empty reads, ${image.size()} bytes total, " +
-                        "${System.currentTimeMillis() - lastRealDataAtMs}ms since the last real data chunk.")
-                    break
-                }
-                continue
-            }
-            consecutiveEmptyReads = 0
-            chunkCount++
-            lastRealDataAtMs = System.currentTimeMillis()
-            image.write(buffer, 0, read)
-            // Every chunk, not just failures - this is what actually shows whether a slow scan is
-            // spending its time on USB data transfer (steady stream of these) vs. something else
-            // entirely (a long gap between this log and the next one).
-            log("Chunk #$chunkCount: $read bytes (${image.size()} total so far).")
-        }
-
-        log("Image stream complete: ${image.size()} bytes total.")
-        return image.toByteArray()
+    // Parse the Brother band framing before decoding. Always drain the USB stream
+    // after JPEG completion so stopping the host cannot interrupt the paper feed.
+    private suspend fun readJpegStream(connection: UsbDeviceConnection, endpoint: UsbEndpoint): ByteArray {
+        val scanContext = currentCoroutineContext()
+        return BrotherScanStreamReader(
+            read = { buffer -> connection.bulkTransfer(endpoint, buffer, buffer.size, TRANSFER_TIMEOUT_MS) },
+            nowMs = { SystemClock.elapsedRealtime() },
+            pause = { Thread.sleep(10) },
+            checkCancelled = { scanContext.ensureActive() },
+            log = { log(it) }
+        ).readImage()
     }
 
     private fun bulkWrite(connection: UsbDeviceConnection, endpoint: UsbEndpoint, data: ByteArray) {
         val sent = connection.bulkTransfer(endpoint, data, data.size, TRANSFER_TIMEOUT_MS)
-        if (sent < 0) throw IllegalStateException("USB write to the DS-640 failed or timed out.")
+        if (sent != data.size) throw IllegalStateException("USB write to the DS-640 was incomplete ($sent/${data.size} bytes).")
     }
 
     private fun bulkRead(connection: UsbDeviceConnection, endpoint: UsbEndpoint, buffer: ByteArray): Int {
@@ -390,23 +326,7 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
         private const val COMMAND_ENDPOINT_OUT = 0x04
         private const val COMMAND_ENDPOINT_IN = 0x83
         private const val ACTION_USB_PERMISSION = "com.liquorbee.invoicescanner.USB_PERMISSION"
-        // Shortened from 10_000: this is a ceiling on how long one bulkTransfer call waits for data
-        // that might not come, NOT a floor on how fast real data returns - a chunk that's already
-        // ready comes back in milliseconds regardless of this value. It only matters for how long
-        // completion-detection (readJpegStream's "N consecutive empty reads" check) waits per
-        // attempt once the device has actually stopped sending - at 10s x MAX_CONSECUTIVE_EMPTY_READS
-        // that was up to 50s of pure dead waiting after the image was already fully received. 1s
-        // still gives generous headroom for a real momentary pause mid-feed while capping that
-        // worst case at ~5s.
+        // Per-transfer timeout; elapsed idle time is handled by BrotherScanStreamReader.
         private const val TRANSFER_TIMEOUT_MS = 1_000
-        // Long receipts can take longer to feed before the first JPEG bytes arrive.
-        // This only bounds startup; image reads continue while data is arriving.
-        private const val PRE_IMAGE_TIMEOUT_MS = 90_000L
-        private const val POST_IMAGE_TIMEOUT_MS = 30_000L
-        private const val MAX_CONSECUTIVE_EMPTY_READS = 5
-
-        // Matches the captured driver's bulk-in read size (11 full 262144-byte chunks plus one
-        // shorter final chunk per page in the reference capture).
-        private const val READ_CHUNK_SIZE = 256 * 1024
     }
 }
