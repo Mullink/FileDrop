@@ -14,6 +14,7 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.SystemClock
+import com.liquorbee.invoicescanner.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -88,6 +89,7 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
     suspend fun capture(): CaptureResult = gate.withLock {
         trace.clear()
         traceStartMs = System.currentTimeMillis()
+        log("Receiving ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}); Android ${Build.VERSION.RELEASE}; ${Build.MANUFACTURER} ${Build.MODEL}.")
         try {
             ensureConnected()
             val jpegBytes = runScanSequence()
@@ -220,68 +222,26 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
         val out = bulkOut!!
         val inEp = bulkIn!!
 
-        val ssp = buildSetScanParametersCommand()
+        val ssp = BrotherScanCommands.setup()
         bulkWrite(conn, out, ssp)
-        log("SSP (set scan parameters) sent, ${ssp.size} bytes; long-paper mode enabled at 300 dpi.")
+        log("SSP sent: ${ssp.size} bytes; long paper, manual scan window, deskew off, ${BrotherScanCommands.DPI} dpi.")
 
-        // Ack/capability response - not parsed in detail, just drained so it can't be misread as
-        // the start of image data on the next transfer.
+        // Validate the reply before starting the feed motor; a rejected or stale reply must not be treated as
+        // successful setup.
         val ackBuffer = ByteArray(512)
         val ackLen = bulkRead(conn, inEp, ackBuffer)
         log("SSP ack received: $ackLen bytes" + if (ackLen > 0) " (starts ${hexPrefix(ackBuffer, ackLen)})" else "")
 
-        val xsc = buildExecuteScanCommand()
+        BrotherScanCommands.validateSetupReply(ackBuffer, ackLen)
+        val xsc = BrotherScanCommands.execute()
         bulkWrite(conn, out, xsc)
-        log("XSC (execute scan) sent, ${xsc.size} bytes - this is what should trigger the feed motor.")
+        log("XSC sent: ${xsc.size} bytes; AREA=0,0,${BrotherScanCommands.WIDTH_PIXELS},${BrotherScanCommands.HEIGHT_PIXELS} (8.5 x 72 inches).")
 
         readJpegStream(conn, inEp)
     }
 
     private fun hexPrefix(buffer: ByteArray, len: Int, max: Int = 16): String =
         buffer.take(minOf(len, max)).joinToString(" ") { "%02X".format(it) }
-
-    private fun buildSetScanParametersCommand(): ByteArray = buildCommand(
-        "SSP",
-        "OS=WIN\n" +
-            "PSRC=AUTO\n" +
-            "RESO=300,300\n" +
-            "CLR=C24BIT\n" +
-            "AREA=ATDSKW\n" +
-            "MRGN=0,0,0,0\n" +
-            "DPLX=OFF\n" +
-            "BRIT=50\n" +
-            "CONT=50\n" +
-            "COMP=JPEG\n" +
-            "JSF=420\n" +
-            "IPRC=NORMAL\n" +
-            "PTYPE=NORMAL\n" +
-            "PAGE=0\n" +
-            // DS-640 long-paper mode: normal mode cuts off receipt-length invoices.
-            "LONG=ON\n" +
-            "CARR=OFF\n" +
-            "RMGC=OFF\n" +
-            "DTDF=OFF\n" +
-            "DT4V=OFF\n" +
-            "DSKW=OFF\n" +
-            "LSMD=OFF\n" +
-            "RMBP=OFF\n" +
-            "RMMR=OFF\n" +
-            "GMMA=OFF\n" +
-            "TONE=OFF\n" +
-            "QTFD=OFF\n" +
-            "ATCN=OFF\n" +
-            "ATCRP=OFF\n" +
-            "USER=\n"
-    )
-
-    private fun buildExecuteScanCommand(): ByteArray = buildCommand("XSC", "RESO=300,300\nAREA=ATDSKW\nMODE=NORMAL\n")
-
-    // Byte-for-byte match to the captured driver's format: ESC, the 3-letter command name, a
-    // newline, then newline-terminated key=value pairs, closed with a single 0x80 byte.
-    private fun buildCommand(name: String, parameters: String): ByteArray {
-        val body = "$name\n$parameters".toByteArray(Charsets.US_ASCII)
-        return body + 0x80.toByte()
-    }
 
     // Parse the Brother band framing before decoding. Always drain the USB stream
     // after JPEG completion so stopping the host cannot interrupt the paper feed.
