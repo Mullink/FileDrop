@@ -23,3 +23,7 @@ The Android regression test reproduces failure of that old path on the emulator'
 Image processing runs off the UI thread. Unannotated pages no longer require a full bitmap copy; owned encoding intermediates are released. Memory failures produce a scan error, and unexpected Java crashes leave a bounded local report shown on the next launch. Reports are not sent automatically. Scan and submission cannot overlap.
 
 Validation: 42 JVM tests and three Android tests passed. The Android tests exercise the old failure, corrected hardware-canvas rendering and thumbnail binding, footer retention after JPEG upload preparation, and local crash recording. Physical confirmation on the store's iMin remains necessary.
+
+## 2.28: full-page thumbnail
+
+The store confirmed the page was visible in Draw but the small thumbnail appeared blank. The thumbnail ImageView still used `centerCrop`, which enlarges a narrow receipt until it fills a conventional page-shaped frame and hides both ends. A blank middle section could fill the entire thumbnail. The ImageView now uses `fitCenter` to show the whole page. The decoder and stored scan image are unchanged. The Android regression renders the actual thumbnail view and checks that both header and footer are visible; switching that same fixture back to `centerCrop` reproduces the blank preview.

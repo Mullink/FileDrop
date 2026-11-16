@@ -3,10 +3,13 @@ package com.liquorbee.invoicescanner.imaging
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Canvas
 import android.graphics.RenderNode
 import android.graphics.drawable.BitmapDrawable
 import android.view.ContextThemeWrapper
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.liquorbee.invoicescanner.R
@@ -21,6 +24,40 @@ import org.junit.runner.RunWith
 class LongInvoiceImageTest {
     private fun fixture() = InstrumentationRegistry.getInstrumentation().context.assets
         .open("long-invoice-2550x21600.jpg").use { it.readBytes() }
+
+    @Test fun thumbnailShowsHeaderAndFooterInsteadOfBlankMiddleCrop() {
+        val bitmap = ScannerBitmapDecoder.decode(fixture())
+        val page = ScanPage(bitmap)
+        try {
+            val instrument = InstrumentationRegistry.getInstrumentation()
+            instrument.runOnMainSync {
+                val context = ContextThemeWrapper(instrument.targetContext, R.style.Theme_InvoiceScanner)
+                val adapter = PageThumbnailAdapter(listOf(page), {}, {})
+                val holder = adapter.onCreateViewHolder(FrameLayout(context), 0)
+                adapter.onBindViewHolder(holder, 0)
+                val preview = holder.binding.imageThumbnail
+                assertEquals(ImageView.ScaleType.FIT_CENTER, preview.scaleType)
+                preview.measure(View.MeasureSpec.makeMeasureSpec(100, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(130, View.MeasureSpec.EXACTLY))
+                preview.layout(0, 0, 100, 130)
+                fun darkPixels(top: Int, bottom: Int): Int {
+                    val rendered = Bitmap.createBitmap(100, 130, Bitmap.Config.ARGB_8888)
+                    try {
+                        preview.draw(Canvas(rendered))
+                        return (top until bottom).sumOf { y -> (0 until 100).count { x -> Color.red(rendered.getPixel(x, y)) < 160 } }
+                    } finally { rendered.recycle() }
+                }
+                assertTrue("Invoice header must remain visible", darkPixels(0, 4) > 0)
+                assertTrue("Invoice footer must remain visible", darkPixels(126, 130) > 0)
+                preview.scaleType = ImageView.ScaleType.CENTER_CROP
+                // ScaleType requests a layout; apply it before inspecting the old rendering.
+                preview.measure(View.MeasureSpec.makeMeasureSpec(100, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(130, View.MeasureSpec.EXACTLY))
+                preview.layout(0, 0, 100, 130)
+                assertEquals("Old center crop showed only blank paper", 0, darkPixels(0, 130))
+            }
+        } finally { page.thumbnail.recycle(); bitmap.recycle() }
+    }
 
     @Test fun previousFullResolutionPathFailsOnAndroidRenderingLimit() {
         var original: Bitmap? = null
