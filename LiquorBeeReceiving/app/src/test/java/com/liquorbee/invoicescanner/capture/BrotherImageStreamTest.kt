@@ -8,8 +8,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class BrotherImageStreamTest {
-    private fun header(size: Int): ByteArray = byteArrayOf(0, 2, 1, 0, 0x15, 0) +
-        ByteArray(8) { if (it < 4) (size ushr (it * 8)).toByte() else 0 }
+    private fun header(size: Int, metadata: Int = 0): ByteArray = byteArrayOf(0, 2, 1, 0, 0x15, 0) +
+        ByteArray(4) { (size ushr (it * 8)).toByte() } +
+        ByteArray(4) { (metadata ushr (it * 8)).toByte() }
     private val trailer = byteArrayOf(0, 0x21, 1, 0, 0, 0x20)
     private fun framed(jpeg: ByteArray, bandSize: Int): ByteArray {
         val result = ByteArrayOutputStream()
@@ -30,7 +31,7 @@ class BrotherImageStreamTest {
         var offset = 0
         while (offset < jpeg.size) {
             val size = minOf(524288, jpeg.size - offset)
-            val bandHeader = header(size)
+            val bandHeader = header(size, if (offset + size == jpeg.size) 2048 else 0)
             if (offset == 0) assertArrayEquals(byteArrayOf(0,2,1,0,0x15,0,0,0,8,0,0,0,0,0), bandHeader)
             stream.accept(bandHeader, 14)
             var inBand = 0
@@ -62,6 +63,39 @@ class BrotherImageStreamTest {
             }
             assertArrayEquals("chunkSize=$chunkSize", smallJpeg, stream.finish())
         }
+    }
+
+    @Test fun finalBandMetadataIsNotTheHighHalfOfTheImageLength() {
+        // Version 2.25 rejected these final headers as "band is too large",
+        // even though the payload length and JPEG were valid.
+        for (metadata in listOf(1, 21600, 0x12345678, Int.MIN_VALUE, -1)) {
+            val split = smallJpeg.size - 35
+            val wire = header(split) + smallJpeg.copyOfRange(0, split) +
+                header(35, metadata) + smallJpeg.copyOfRange(split, smallJpeg.size) + trailer
+            for (chunk in listOf(1, 7, 14, 64, wire.size)) {
+                val stream = BrotherImageStream()
+                wire.toList().chunked(chunk).forEach { stream.accept(it.toByteArray(), it.size) }
+                assertArrayEquals("metadata=$metadata chunk=$chunk", smallJpeg, stream.finish())
+                assertEquals(2, stream.bandCount)
+                assertTrue(stream.sawTrailer)
+                assertNotNull(decode(stream.finish()))
+            }
+        }
+    }
+
+    @Test fun emptyMetadataBandDoesNotConsumeTrailerOrSupplyMissingJpegData() {
+        val stream = BrotherImageStream()
+        val wire = header(smallJpeg.size) + smallJpeg + header(0, 21600) + trailer
+        stream.accept(wire, wire.size)
+        assertArrayEquals(smallJpeg, stream.finish())
+        assertTrue(stream.sawTrailer)
+        val incomplete = BrotherImageStream()
+        val partial = header(smallJpeg.size - 2, 21600) + smallJpeg.dropLast(2).toByteArray() + header(0, 21600) + trailer
+        incomplete.accept(partial, partial.size)
+        assertThrows(IllegalStateException::class.java) { incomplete.finish() }
+        val empty = BrotherImageStream()
+        empty.accept(header(0, 21600), 14)
+        assertThrows(IllegalStateException::class.java) { empty.finish() }
     }
 
     @Test fun preservesHeaderLikeBytesAndFalseEndMarkerInsideJpegMetadata() {
@@ -98,7 +132,7 @@ class BrotherImageStreamTest {
     }
 
     @Test fun rejectsUnboundedDeviceLengthsAndBadTrailerStatus() {
-        for (length in listOf(0, -1, 65 * 1024 * 1024)) {
+        for (length in listOf(-1, Int.MIN_VALUE, 65 * 1024 * 1024)) {
             val stream = BrotherImageStream()
             assertThrows(IllegalStateException::class.java) { stream.accept(header(length), 14) }
         }
@@ -149,6 +183,18 @@ class BrotherImageStreamTest {
         assertArrayEquals(smallJpeg, usb.run())
         assertEquals(13, usb.consumed)
         assertTrue(usb.time >= 7000)
+    }
+
+    @Test fun completeUsbScanWithNonzeroFinalMetadataReturnsTheWholeImage() {
+        val usb = FakeUsb()
+        val split = smallJpeg.size - 35
+        usb.add(header(split)); usb.add(smallJpeg.copyOfRange(0, split))
+        usb.add(header(35, 21600), 2000); usb.add(smallJpeg.copyOfRange(split, smallJpeg.size))
+        usb.add(trailer)
+        assertArrayEquals(smallJpeg, usb.run())
+        assertEquals(5, usb.consumed)
+        assertTrue(usb.time >= 7000)
+        assertTrue(usb.time < 10000)
     }
 
     @Test fun interruptedStreamFailsAfterElapsedIdleRatherThanAcceptingPartialImage() {

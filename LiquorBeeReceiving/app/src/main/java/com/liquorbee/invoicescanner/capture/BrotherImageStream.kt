@@ -5,7 +5,11 @@ import java.io.ByteArrayOutputStream
 /**
  * DS-640 colour band header observed in the field:
  * 00 02 01 00 15 00 00 00 08 00 00 00 00 00, followed by 524288 image bytes.
- * The eight-byte little-endian payload length starts at offset 6. USB transfers
+ * Offsets 6 and 10 are SEPARATE little-endian uint32 fields: payload byte count
+ * and band metadata. Brother's ParseXSCcmdImageDataInfo reads them separately;
+ * only the first determines how many image bytes follow. The second can be
+ * nonzero, especially in the final band. It is not the high half of a uint64.
+ * USB transfers
  * are not records: a header or payload can span reads, or share a read.
  * Only interpret headers BETWEEN payloads; identical bytes inside an image stay intact.
  */
@@ -74,16 +78,16 @@ internal class BrotherImageStream(private val log: (String) -> Unit = {}) {
                 check(u(header[4]) in listOf(0x11, 0x15) && header[5] == 0.toByte()) {
                     "Unsupported scanner image band: ${hex(header, 0, headerSize)}"
                 }
-                var size = 0L
-                // Avoid signed overflow before validating a device-provided length.
-                check((10..13).all { header[it] == 0.toByte() }) { "Scanner image band is too large." }
-                for (i in 0..3) size = size or (u(header[6 + i]).toLong() shl (8 * i))
-                check(size in 1..MAX_IMAGE_BYTES.toLong() && imageSize.toLong() + size <= MAX_IMAGE_BYTES) {
-                    "Scanner image exceeds the supported memory limit. Scan this invoice in sections."
+                val size = uint32(header, 6)
+                val bandInfo = uint32(header, 10)
+                log("Image band #${bandCount + 1}: $size payload bytes; metadata=$bandInfo; header ${hex(header, 0, headerSize)}")
+                // Bound the actual payload before narrowing to Int. Metadata never
+                // controls allocation or consumes bytes from the next USB record.
+                check(size <= MAX_IMAGE_BYTES.toLong() && imageSize.toLong() + size <= MAX_IMAGE_BYTES) {
+                    "Scanner image exceeds the supported memory limit ($size band bytes, $imageSize received). Scan this invoice in sections."
                 }
                 remaining = size.toInt()
                 bandCount++
-                log("Image band #$bandCount: $remaining payload bytes; header ${hex(header, 0, headerSize)}")
                 headerSize = 0
             }
         }
@@ -109,6 +113,8 @@ internal class BrotherImageStream(private val log: (String) -> Unit = {}) {
     companion object {
         private const val MAX_IMAGE_BYTES = 64 * 1024 * 1024
         private fun u(value: Byte) = value.toInt() and 0xff
+        private fun uint32(bytes: ByteArray, offset: Int): Long =
+            (0..3).fold(0L) { value, i -> value or (u(bytes[offset + i]).toLong() shl (8 * i)) }
         private fun hex(bytes: ByteArray, start: Int, end: Int): String =
             (start until minOf(end, start + 16)).joinToString(" ") { "%02X".format(bytes[it]) }
     }
