@@ -11,6 +11,7 @@ import com.liquorbee.invoicescanner.ui.AppNotifications
 class InvoiceScannerApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        CrashDiagnostics.install(this)
         AppNotifications.createChannel(this)
     }
 }

@@ -44,10 +44,9 @@ object ImagePipeline {
         val dstRect = android.graphics.Rect(0, 0, targetWidth, targetHeight)
         canvas.drawBitmap(source, srcRect, dstRect, paint)
 
-        val jpegBytes = encodeJpeg(resized, jpegQuality)
-        val thumbnail = createThumbnail(resized)
-
-        return ProcessedImage(jpegBytes, thumbnail)
+        return try {
+            ProcessedImage(encodeJpeg(resized, jpegQuality), createThumbnail(resized))
+        } finally { resized.recycle() }
     }
 
     private fun createThumbnail(source: Bitmap, maxEdge: Int = 160): ByteArray {
@@ -55,7 +54,8 @@ object ImagePipeline {
         val w = max(1, (source.width * scale).roundToInt())
         val h = max(1, (source.height * scale).roundToInt())
         val thumb = Bitmap.createScaledBitmap(source, w, h, true)
-        return encodeJpeg(thumb, 80)
+        return try { encodeJpeg(thumb, 80) }
+        finally { if (thumb !== source) thumb.recycle() }
     }
 
     private fun encodeJpeg(bitmap: Bitmap, quality: Int): ByteArray {

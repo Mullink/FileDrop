@@ -1,6 +1,7 @@
 package com.liquorbee.invoicescanner.ui
 
 import android.graphics.Bitmap
+import com.liquorbee.invoicescanner.imaging.ScannerBitmapDecoder
 import com.liquorbee.invoicescanner.annotation.Stroke
 import com.liquorbee.invoicescanner.annotation.TextNote
 
@@ -10,6 +11,8 @@ data class ScanPage(
     var strokes: MutableList<Stroke> = mutableListOf(),
     var notes: MutableList<TextNote> = mutableListOf()
 ) {
+    // ImageView scaling does not reduce a bitmap's backing allocation or GPU upload.
+    val thumbnail: Bitmap = ScannerBitmapDecoder.thumbnail(bitmap)
     val hasAnnotations: Boolean get() = strokes.isNotEmpty() || notes.isNotEmpty()
 }
 

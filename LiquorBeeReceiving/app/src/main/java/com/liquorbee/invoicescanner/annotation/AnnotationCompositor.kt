@@ -14,11 +14,12 @@ import kotlin.math.max
  * and the MAUI attempt's AnnotationCompositor.cs: fractional (0-1) coordinates in, a rendered
  * bitmap out. Runs BEFORE ImagePipeline (which then grayscales/downscales/JPEG-encodes the
  * result) - by the time ImagePipeline sees it, it's just a bitmap with no separate concept of
- * "annotation". Drawing is optional: if strokes and notes are both empty this is a no-op copy.
+ * "annotation". With no markup, the original is borrowed; callers recycle only owned copies.
  */
 object AnnotationCompositor {
 
     fun composite(base: Bitmap, strokes: List<Stroke>, notes: List<TextNote>): Bitmap {
+        if (strokes.isEmpty() && notes.isEmpty()) return base
         val result = base.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(result)
         val longEdge = max(result.width, result.height).toFloat()

@@ -21,7 +21,7 @@ class PageThumbnailAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val page = pages[position]
-        holder.binding.imageThumbnail.setImageBitmap(page.bitmap)
+        holder.binding.imageThumbnail.setImageBitmap(page.thumbnail)
         holder.binding.textPageNumber.text = "Page ${position + 1}"
         holder.binding.textAnnotatedBadge.visibility = if (page.hasAnnotations) View.VISIBLE else View.GONE
         holder.binding.buttonDraw.setOnClickListener { onDrawClicked(position) }

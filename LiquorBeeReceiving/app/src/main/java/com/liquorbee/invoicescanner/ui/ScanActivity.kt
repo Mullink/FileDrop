@@ -29,6 +29,9 @@ import com.liquorbee.invoicescanner.network.SessionManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -54,6 +57,8 @@ class ScanActivity : AppCompatActivity() {
     private var templates: List<CustomerInvoiceTemplateListItemDto> = emptyList()
     private var pendingInvoiceNumber: String? = null
     private var lastSubmittedBatchId: String? = null
+    private var capturing = false
+    private var submitting = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,8 +86,8 @@ class ScanActivity : AppCompatActivity() {
 
         adapter = PageThumbnailAdapter(
             PageStore.pages,
-            onDrawClicked = { index -> startActivity(Intent(this, DrawActivity::class.java).putExtra(EXTRA_PAGE_INDEX, index)) },
-            onRemoveClicked = { index -> PageStore.pages.removeAt(index); adapter.notifyDataSetChanged() }
+            onDrawClicked = { index -> if (!submitting && !capturing) startActivity(Intent(this, DrawActivity::class.java).putExtra(EXTRA_PAGE_INDEX, index)) },
+            onRemoveClicked = { index -> if (!submitting && !capturing) { PageStore.pages.removeAt(index); adapter.notifyDataSetChanged() } }
         )
         binding.recyclerPages.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.recyclerPages.adapter = adapter
@@ -202,13 +207,20 @@ class ScanActivity : AppCompatActivity() {
     }
 
     private fun captureFromBrother() {
+        if (capturing || submitting) return
+        capturing = true
+        binding.buttonBrother.isEnabled = false
+        binding.buttonSubmit.isEnabled = false
         // Immediate, unmissable feedback the instant the button is tapped - a slow/stuck USB
         // operation should never look indistinguishable from the tap not registering at all.
         Toast.makeText(this, "Starting scan...", Toast.LENGTH_SHORT).show()
 
         lifecycleScope.launch {
+          try {
             val result = try {
                 brotherSource.capture()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Belt-and-suspenders: capture() already catches its own exceptions, but if
                 // anything else throws here, still show it instead of silently doing nothing.
@@ -217,7 +229,9 @@ class ScanActivity : AppCompatActivity() {
 
             when (result) {
                 is CaptureResult.Success -> {
-                    PageStore.pages.add(ScanPage(result.page.bitmap))
+                    val page = try { ScanPage(result.page.bitmap) }
+                        catch (error: OutOfMemoryError) { result.page.bitmap.recycle(); throw error }
+                    PageStore.pages.add(page)
                     adapter.notifyDataSetChanged()
                     // Standard-mode users don't need the raw diagnostic log on a successful scan -
                     // a brief toast is enough; Admin Mode still gets the full dialog + log/email option.
@@ -230,6 +244,13 @@ class ScanActivity : AppCompatActivity() {
                 is CaptureResult.Failure -> showScanLogDialog("Scan failed: ${result.message}", brotherSource.lastAttemptLog)
                 CaptureResult.Cancelled -> {}
             }
+          } catch (error: OutOfMemoryError) {
+              showScanLogDialog("Not enough memory to preview this scan. Submit or remove saved pages and retry.", brotherSource.lastAttemptLog)
+          } finally {
+              capturing = false
+              binding.buttonBrother.isEnabled = !submitting
+              binding.buttonSubmit.isEnabled = !submitting
+          }
         }
     }
 
@@ -270,6 +291,7 @@ class ScanActivity : AppCompatActivity() {
     }
 
     private fun submitBatch() {
+        if (capturing || submitting) return
         // Index 0 is the "Select a vendor..." placeholder prepended in loadTemplates() - never a
         // real choice, so it must be rejected here the same as no selection at all.
         val templateIndex = binding.spinnerTemplate.selectedItemPosition - 1
@@ -290,11 +312,18 @@ class ScanActivity : AppCompatActivity() {
             try {
                 val api = ApiClient.buildAuthenticatedApi(session)
 
-                val imageParts = PageStore.pages.mapIndexed { i, page ->
-                    val composited = AnnotationCompositor.composite(page.bitmap, page.strokes, page.notes)
-                    val processed = ImagePipeline.process(composited, MAX_LONG_EDGE_PX, JPEG_QUALITY)
-                    val body = processed.bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
-                    MultipartBody.Part.createFormData("images", "page_${i + 1}.jpg", body)
+                val submittedPages = PageStore.pages.toList()
+                val imageParts = withContext(Dispatchers.Default) {
+                    submittedPages.mapIndexed { i, page ->
+                        val composited = AnnotationCompositor.composite(page.bitmap, page.strokes.toList(), page.notes.toList())
+                        try {
+                            val processed = ImagePipeline.process(composited, MAX_LONG_EDGE_PX, JPEG_QUALITY)
+                            val body = processed.bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                            MultipartBody.Part.createFormData("images", "page_${i + 1}.jpg", body)
+                        } finally {
+                            if (composited !== page.bitmap) composited.recycle()
+                        }
+                    }
                 }
 
                 val templateIdBody = templateId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
@@ -314,6 +343,10 @@ class ScanActivity : AppCompatActivity() {
                 setStatus("Invoice submitted - it's processing in the background.")
                 PageStore.clear()
                 adapter.notifyDataSetChanged()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: OutOfMemoryError) {
+                setStatus("Not enough memory to prepare the upload. Remove a page and submit fewer pages at once.")
             } catch (e: Exception) {
                 setStatus("Submit failed: ${e.message}")
             } finally {
@@ -349,8 +382,10 @@ class ScanActivity : AppCompatActivity() {
     }
 
     private fun setSubmitting(submitting: Boolean) {
+        this.submitting = submitting
         binding.progressSubmit.visibility = if (submitting) View.VISIBLE else View.GONE
-        binding.buttonSubmit.isEnabled = !submitting
+        binding.buttonSubmit.isEnabled = !submitting && !capturing
+        binding.buttonBrother.isEnabled = !submitting && !capturing
     }
 
     private fun setStatus(message: String) {

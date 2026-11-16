@@ -5,7 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.BitmapFactory
+import com.liquorbee.invoicescanner.imaging.ScannerBitmapDecoder
+import com.liquorbee.invoicescanner.CrashDiagnostics
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -92,23 +93,26 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
         log("Receiving ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}); Android ${Build.VERSION.RELEASE}; ${Build.MANUFACTURER} ${Build.MODEL}.")
         try {
             ensureConnected()
-            val jpegBytes = runScanSequence()
-            log("Decoding ${jpegBytes.size} JPEG bytes as a bitmap...")
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, bounds)
-            log("JPEG dimensions: ${bounds.outWidth}x${bounds.outHeight}.")
-            val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
-                ?: run {
-                    log("BitmapFactory.decodeByteArray returned null.")
-                    throw IllegalStateException("The DS-640 returned data that could not be decoded as an image.")
+            val bitmap = withContext(Dispatchers.IO) {
+                val jpegBytes = runScanSequence()
+                log("Decoding ${jpegBytes.size} JPEG bytes as a bitmap...")
+                CrashDiagnostics.scanContext = trace.takeLast(6000).toString()
+                ScannerBitmapDecoder.decode(jpegBytes) { message ->
+                    log(message)
+                    CrashDiagnostics.scanContext = trace.takeLast(6000).toString()
                 }
-            log("Bitmap decoded: ${bitmap.width}x${bitmap.height}.")
+            }
             lastAttemptLog = trace.toString()
             CaptureResult.Success(CapturedPage(bitmap))
         } catch (e: CancellationException) {
             closeConnection()
             lastAttemptLog = trace.toString()
             throw e
+        } catch (e: OutOfMemoryError) {
+            log("FAILED: Insufficient memory while receiving the scan.")
+            closeConnection()
+            lastAttemptLog = trace.toString()
+            CaptureResult.Failure("Not enough memory for this scan. Submit or remove saved pages and retry.")
         } catch (e: Exception) {
             log("FAILED: ${e::class.simpleName}: ${e.message}")
             // Leave the device in a known state for the NEXT call rather than repeatedly failing
