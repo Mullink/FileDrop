@@ -215,7 +215,7 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
 
         val ssp = buildSetScanParametersCommand()
         bulkWrite(conn, out, ssp)
-        log("SSP (set scan parameters) sent, ${ssp.size} bytes.")
+        log("SSP (set scan parameters) sent, ${ssp.size} bytes; long-paper mode enabled at 300 dpi.")
 
         // Ack/capability response - not parsed in detail, just drained so it can't be misread as
         // the start of image data on the next transfer.
@@ -249,7 +249,8 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
             "IPRC=NORMAL\n" +
             "PTYPE=NORMAL\n" +
             "PAGE=0\n" +
-            "LONG=OFF\n" +
+            // DS-640 long-paper mode: normal mode cuts off receipt-length invoices.
+            "LONG=ON\n" +
             "CARR=OFF\n" +
             "RMGC=OFF\n" +
             "DTDF=OFF\n" +
@@ -398,7 +399,9 @@ class BrotherUsbCaptureSource(private val context: Context) : PageCaptureSource 
         // still gives generous headroom for a real momentary pause mid-feed while capping that
         // worst case at ~5s.
         private const val TRANSFER_TIMEOUT_MS = 1_000
-        private const val PRE_IMAGE_TIMEOUT_MS = 20_000L
+        // Long receipts can take longer to feed before the first JPEG bytes arrive.
+        // This only bounds startup; image reads continue while data is arriving.
+        private const val PRE_IMAGE_TIMEOUT_MS = 90_000L
         private const val POST_IMAGE_TIMEOUT_MS = 30_000L
         private const val MAX_CONSECUTIVE_EMPTY_READS = 5
 
