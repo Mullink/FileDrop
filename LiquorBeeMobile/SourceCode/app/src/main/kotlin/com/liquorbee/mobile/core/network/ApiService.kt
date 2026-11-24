@@ -51,6 +51,10 @@ interface ApiService {
     @GET("Profile/GetAccountSettings")
     suspend fun getAccountSettings(): Response<AccountSettingsDto>
 
+    // Flag-only call (no live service-area lookup): wholesaleSettings.wholesaleManagerEnabled gates Wholesale.
+    @GET("Profile/GetPosCustomerSettings")
+    suspend fun getPosCustomerSettings(@Query("includeServiceAreas") includeServiceAreas: Boolean = false): Response<PosCustomerSettingsDto>
+
     @GET("Admin/GetLastWeekTopSellers/{customerId}")
     suspend fun getLastWeekTopSellers(@Path("customerId") customerId: Int): Response<TopSellersDto>
 
@@ -153,6 +157,180 @@ interface ApiService {
         @Path("sessionId") sessionId: Int,
         @Path("updateInventory") updateInventory: Boolean
     ): Response<ResponseBody>
+
+    // ---- Create Order (SubCustomers - same endpoints the Wholesale app's Place Order uses) ----
+
+    // priceListId "" = the General Customer (retail) catalog for this store.
+    @GET("SubCustomers/GetCatalog")
+    suspend fun getOrderCatalog(
+        @Query("customerId") customerId: Int,
+        @Query("priceListId") priceListId: String = ""
+    ): Response<List<SubCustomerCatalogItemDto>>
+
+    // Creates an open General Customer order on the store's POS register.
+    @POST("SubCustomers/CreateGeneralOrder")
+    suspend fun createGeneralOrder(@Body request: CreateGeneralOrderDto): Response<SubCustomerDraftOrderDto>
+
+    @POST("SubCustomers/CreateDraftOrder")
+    suspend fun createDraftOrder(@Body request: CreateSubCustomerDraftOrderDto): Response<SubCustomerDraftOrderDto>
+
+    // Store-side order list (headers only) and one order with its lines - web Wholesale Manager.
+    @GET("SubCustomers/GetWholesaleOpenOrders")
+    suspend fun getWholesaleOrders(
+        @Query("includeAll") includeAll: Boolean = true,
+        @Query("headersOnly") headersOnly: Boolean = true,
+        // cached = the server's last synced list from memory (no POS round trip); 204 when it has none yet.
+        @Query("cached") cached: Boolean = false
+    ): Response<List<WholesaleOrderDto>>
+
+    @GET("SubCustomers/GetManagementOrderDetail")
+    suspend fun getWholesaleOrderDetail(@Query("orderId") orderId: String): Response<WholesaleOrderDto>
+
+    @GET("SubCustomers/GetManagementView")
+    suspend fun getManagementView(@Query("radiusMiles") radiusMiles: Int = 50): Response<SubCustomerManagementDto>
+
+    // ---- LB cart (web Shopping Cart's "Add to LiquorBee") ----
+
+    // Plain-text two-letter state ("MS", "AL", ...), not JSON.
+    @GET("Products/GetCustomerState")
+    suspend fun getCustomerState(): Response<ResponseBody>
+
+    @GET("Products/GetAlabamaWholesaleStores")
+    suspend fun getAlabamaWholesaleStores(): Response<List<AlabamaWholesaleStoreDto>>
+
+    @GET("Login/GetRestrictedPosUser")
+    suspend fun getRestrictedPosUser(): Response<Boolean>
+
+    // ---- Unknown barcode (same endpoints as the web manual PO's "Create Item") ----
+
+    // Master liquor catalog search - matches name, state code, or (substring) barcode.
+    @GET("Products/GetItemCatalogSearch")
+    suspend fun getItemCatalogSearch(@Query("searchTerm") searchTerm: String): Response<List<ItemCatalogSearchDto>>
+
+    @GET("Products/GetItemMetaDataList")
+    suspend fun getItemMetaDataList(): Response<List<ItemMetaDataDto>>
+
+    @POST("Products/UpdateItemMetaData")
+    suspend fun updateItemMetaData(@Body request: UpdateItemMetaDataRequest): Response<ResponseBody>
+
+    // Universal product resolution. Currently restricted server-side to the qmullink admin login
+    // (403 for everyone else) - callers treat any failure as "no universal data".
+    @POST("Items/Resolve")
+    suspend fun resolveItem(@Body request: ItemResolveRequest): Response<ItemResolutionDto>
+
+    // Backfill: attach a human-confirmed barcode to a universal product.
+    @POST("UniversalProducts/{sku}/Upcs")
+    suspend fun saveUniversalUpc(@Path("sku") universalSku: String, @Body action: UniversalUpcAction): Response<ResponseBody>
+
+    // Map a store item just created from a universal product to it (store from the token; found by barcode + SKU).
+    @POST("UniversalProducts/{sku}/StoreItem")
+    suspend fun linkUniversalStoreItem(@Path("sku") universalSku: String, @Body link: UniversalStoreItemLink): Response<ResponseBody>
+
+    // Create Item pre-fill: price book SKU / unit cost and a suggested price at the store's desired markup.
+    @GET("Products/GetCreateItemDefaults")
+    suspend fun getCreateItemDefaults(
+        @Query("sku") sku: String?,
+        @Query("universalSku") universalSku: String?,
+        @Query("cost") cost: Double?
+    ): Response<CreateItemDefaultsDto>
+
+    @POST("Products/CreateItemForManualPO")
+    suspend fun createItemForManualPO(@Body request: CreateItemForPORequest): Response<ResponseBody>
+
+    @POST("Products/AddSmartItems")
+    suspend fun addSmartItems(@Body items: List<SmartProductAddDto>): Response<ResponseBody>
+
+    // ---- LB cart staged orders + reorder report (web Shopping Cart) ----
+
+    @GET("Products/GetAllStagedOrdersAsync")
+    suspend fun getStagedOrders(): Response<List<StagedOrderLineDto>>
+
+    @POST("Products/CreateBulkStageOrder")
+    suspend fun createStagedOrder(@Body lines: List<StageOrderLineRequest>): Response<ResponseBody>
+
+    @POST("Products/AddToExistingStageOrder")
+    suspend fun addToStagedOrder(@Body lines: List<StageOrderLineRequest>): Response<ResponseBody>
+
+    @GET("Products/GetAllItemsForPricing/{code}")
+    suspend fun getItemsForPricing(@Path("code") code: Int = 0): Response<List<PricingItemDto>>
+
+    // General / Full stores only (403 elsewhere).
+    @GET("Products/GetGeneralMarkupItems")
+    suspend fun getGeneralMarkupItems(): Response<List<PricingItemDto>>
+
+    @GET("Products/GetShelfReview/{lookbackDays}/{onlyReceivedRecently}")
+    suspend fun getShelfReview(@Path("lookbackDays") lookbackDays: Int, @Path("onlyReceivedRecently") onlyReceivedRecently: Boolean): Response<List<ShelfReviewItemDto>>
+
+    @GET("Products/GetReorderCartConfig")
+    suspend fun getReorderCartConfig(): Response<ReorderCartConfigDto>
+
+    // Plain-text MM/DD/YYYY of the store's last POS sync.
+    @GET("Products/GetLastSyncDate")
+    suspend fun getLastSyncDate(): Response<ResponseBody>
+
+    // The Shopping Cart report: one dynamic row per item (PascalCase keys). weeksOut 1-8/12 = forecast,
+    // 0 = reorder point (with a *-REORDERPOINT vendor). startDate is MM-dd-yyyy.
+    @GET("Products/GetDynamicSalesReportData/{weeksOut}/{startDate}/{allData}/{vendor}")
+    suspend fun getDynamicSalesReport(
+        @Path("weeksOut") weeksOut: Int,
+        @Path("startDate") startDate: String,
+        @Path("allData") allData: Boolean,
+        @Path("vendor") vendor: String
+    ): Response<kotlinx.serialization.json.JsonArray>
+
+    // ---- Restock list ----
+
+    @GET("Restock/GetItems")
+    suspend fun getRestockItems(): Response<List<RestockItemDto>>
+
+    // ---- Pick lists (Restock list, wholesale orders, Enterprise lists) ----
+
+    @GET("PickLists/GetLists")
+    suspend fun getPickLists(
+        @Query("status") status: String,
+        @Query("source") source: String? = null,
+        @Query("search") search: String? = null,
+        @Query("days") days: Int? = null,
+        @Query("take") take: Int = 200
+    ): Response<List<PickListSummaryDto>>
+
+    @GET("PickLists/Get/{id}")
+    suspend fun getPickList(@Path("id") id: Int): Response<PickListDto>
+
+    @POST("PickLists/Create")
+    suspend fun createPickList(@Body request: CreatePickListRequest): Response<PickListDto>
+
+    @POST("PickLists/Pick/{listId}/{itemId}")
+    suspend fun pickItem(@Path("listId") listId: Int, @Path("itemId") itemId: Int, @Body request: PickItemRequest): Response<PickListItemDto>
+
+    @POST("PickLists/Complete/{id}")
+    suspend fun completePickList(@Path("id") id: Int): Response<PickListSummaryDto>
+
+    @POST("PickLists/Reopen/{id}")
+    suspend fun reopenPickList(@Path("id") id: Int): Response<PickListSummaryDto>
+
+    // Emails the list from no-reply@liquorbee.com; message is an optional note at the top. 204 on success.
+    @POST("PickLists/Email/{id}")
+    suspend fun emailPickList(@Path("id") id: Int, @Body request: EmailPickListRequest): Response<ResponseBody>
+
+    @retrofit2.http.DELETE("PickLists/Delete/{id}")
+    suspend fun deletePickList(@Path("id") id: Int): Response<ResponseBody>
+
+    @GET("Restock/GetQtyOnReserve")
+    suspend fun getQtyOnReserve(@Query("code") code: String): Response<QtyOnReserveDto>
+
+    @POST("Restock/AddItem")
+    suspend fun addRestockItem(@Body request: AddRestockItemRequest): Response<RestockItemDto>
+
+    // 200 with the row, or 204 when qty <= 0 deleted it.
+    @POST("Restock/SetQty")
+    suspend fun setRestockQty(@Body request: SetRestockQtyRequest): Response<ResponseBody>
+
+    @retrofit2.http.DELETE("Restock/RemoveItem/{id}")
+    suspend fun removeRestockItem(@Path("id") id: Int): Response<ResponseBody>
+
+    @retrofit2.http.DELETE("Restock/Clear")
+    suspend fun clearRestock(): Response<ResponseBody>
 
     // ---- Scan Invoice (human-automation queue) ----
 

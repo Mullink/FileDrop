@@ -1,6 +1,10 @@
 package com.liquorbee.mobile
 
 import android.app.Application
+import com.liquorbee.mobile.carts.CartStore
+import com.liquorbee.mobile.carts.CatalogRepository
+import com.liquorbee.mobile.carts.RestockRepository
+import com.liquorbee.mobile.carts.ReorderRepository
 import com.liquorbee.mobile.core.network.ApiService
 import com.liquorbee.mobile.core.network.NetworkModule
 import com.liquorbee.mobile.core.network.TokenStore
@@ -20,6 +24,15 @@ class LiquorBeeApplication : Application() {
 
     lateinit var apiService: ApiService
         private set
+
+    // Shared by the Scan and Carts screens so both always see the same carts/catalog.
+    val cartStore: CartStore by lazy { CartStore(this) }
+    val catalogRepository: CatalogRepository by lazy { CatalogRepository(apiService) }
+    val restockRepository: RestockRepository by lazy { RestockRepository(apiService) }
+    val reorderRepository: ReorderRepository by lazy { ReorderRepository(this, apiService, catalogRepository) }
+    val itemInsightsRepository: com.liquorbee.mobile.carts.ItemInsightsRepository by lazy { com.liquorbee.mobile.carts.ItemInsightsRepository(apiService) }
+    /** Whether this store sells wholesale (web's Wholesale Manager switch), plus its saved orders list. */
+    val wholesaleAccess: com.liquorbee.mobile.wholesale.WholesaleAccess by lazy { com.liquorbee.mobile.wholesale.WholesaleAccess(this, apiService) }
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> get() = _isLoggedIn
@@ -50,6 +63,13 @@ class LiquorBeeApplication : Application() {
 
     fun signOut() {
         tokenStore.clear()
+        // Carts belong to the store that was signed in - don't carry them over to the next login.
+        cartStore.clearAll()
+        catalogRepository.clear()
+        restockRepository.reset()
+        reorderRepository.reset()
+        itemInsightsRepository.reset()
+        wholesaleAccess.reset()
         _isLoggedIn.value = false
     }
 }

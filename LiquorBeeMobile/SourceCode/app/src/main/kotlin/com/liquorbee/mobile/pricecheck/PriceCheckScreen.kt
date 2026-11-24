@@ -61,7 +61,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.liquorbee.mobile.core.network.PriceCheckItemDto
+import com.liquorbee.mobile.itemresolve.ItemMatching
+import com.liquorbee.mobile.itemresolve.UnknownBarcodeFlow
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.liquorbee.mobile.core.ui.LbActive
+import com.liquorbee.mobile.core.ui.ScanMode
+import com.liquorbee.mobile.core.ui.ScanModeToggle
 import com.liquorbee.mobile.core.ui.LbBad
 import com.liquorbee.mobile.core.ui.LbBorder
 import com.liquorbee.mobile.core.ui.LbDivider
@@ -83,14 +89,28 @@ private val CardShape = RoundedCornerShape(8.dp)
 private val FieldShape = RoundedCornerShape(6.dp)
 
 @Composable
-fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
+fun PriceCheckScreen(
+    viewModel: PriceCheckViewModel,
+    onBack: () -> Unit,
+    returnAfterEdit: Boolean = false,
+    /** Switch to Stock mgmt (Scan), carrying what's typed/scanned; null hides the mode toggle. */
+    onSwitchToStock: ((query: String) -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsState()
     if (uiState.editorOpen) {
-        PriceCheckEditor(uiState, onNext = viewModel::closeEditor,
-            onBack = { viewModel.closeEditor(); onBack() }, onReload = viewModel::editItem, onSave = viewModel::saveItem)
+        // Opened from Scan's "Edit Item": done editing goes back to Scan, not to an empty lookup.
+        PriceCheckEditor(uiState, onNext = { viewModel.closeEditor(); if (returnAfterEdit) onBack() },
+            onBack = { viewModel.closeEditor(); onBack() }, onReload = viewModel::editItem, onSave = viewModel::saveItem,
+            title = if (returnAfterEdit) "Edit Item" else "Price Check")
         return
     }
     val upcFocusRequester = remember { FocusRequester() }
+    // A scanned barcode with no match opens the link-or-create flow once; dismissing it keeps it
+    // closed for that barcode (the "Link or create item" button reopens it).
+    var dismissedBarcode by remember { mutableStateOf<String?>(null) }
+    val scanned = uiState.upcText.trim()
+    val unknownBarcode = if (uiState.notFound && !uiState.upcLoading && ItemMatching.looksLikeBarcode(scanned) &&
+        scanned != dismissedBarcode && scanned != uiState.savedBarcode) scanned else null
 
     // Every screen open, and again after every Clear, the UPC field should be focused so the
     // iMin hardware scan-trigger keys (which inject the scanned barcode as simulated keystrokes
@@ -104,7 +124,10 @@ fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
         containerColor = LbPage,
         topBar = {
             TopAppBar(
-                title = { Text("Price Check", fontWeight = FontWeight.SemiBold) },
+                title = {
+                    if (onSwitchToStock != null) ScanModeToggle(ScanMode.ItemEdits, onSelect = { onSwitchToStock(uiState.upcText.trim()) })
+                    else Text("Price Check", fontWeight = FontWeight.SemiBold)
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -137,21 +160,34 @@ fun PriceCheckScreen(viewModel: PriceCheckViewModel, onBack: () -> Unit) {
             uiState.saveMessage?.let { Text(it, color = LbGood) }
             uiState.lookupError?.let { Text(it, color = LbBad) }
 
-            if (uiState.notFound && !uiState.upcLoading) {
+            // Hidden while the not-found dialog is open, so it doesn't show through as the dialog fades in.
+            if (uiState.notFound && !uiState.upcLoading && unknownBarcode == null) {
                 FlatCard {
-                    Text(
-                        "No matching items. Try another UPC, SKU, or item name.",
-                        color = LbMuted,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 28.dp),
-                        textAlign = TextAlign.Center
-                    )
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "No matching items. Try another UPC, SKU, or item name.",
+                            color = LbMuted,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        if (ItemMatching.looksLikeBarcode(uiState.upcText.trim())) {
+                            OutlinedButton(onClick = { dismissedBarcode = null }, modifier = Modifier.padding(top = 12.dp)) {
+                                Text("Link or create item", color = LbActive)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+
+    UnknownBarcodeFlow(
+        barcode = unknownBarcode,
+        onDismiss = { dismissedBarcode = scanned },
+        onResolved = { barcode, _ -> dismissedBarcode = null; viewModel.onBarcodeSaved(barcode) },
+        onScanAnother = { code -> dismissedBarcode = null; viewModel.onUpcChanged(code) }
+    )
 
     if (uiState.showAmbiguousDialog) {
         AlertDialog(

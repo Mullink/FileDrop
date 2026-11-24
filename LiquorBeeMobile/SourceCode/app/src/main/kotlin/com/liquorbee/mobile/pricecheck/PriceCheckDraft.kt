@@ -75,7 +75,11 @@ internal data class PriceCheckDraft(
 
     fun request(item: PriceCheckEditDto): PriceCheckEditDto {
         require(error(item) == null)
-        return item.copy(name = name.trim(), upc = upc.trim(), sku = sku.trim(), description = description,
+        // Untouched text goes back exactly as loaded, so the server sees no change and never re-sends
+        // it to the POS (an item's blank/"0" UPC re-sent is rejected as a duplicate).
+        fun kept(edited: String, original: String) = if (edited.trim() == original.trim()) original else edited.trim()
+        return item.copy(name = kept(name, item.name), upc = kept(upc, item.upc), sku = kept(sku, item.sku),
+            description = if (description.trim() == item.description.trim()) item.description else description,
             price = price.toDouble(), cost = cost.toDouble(), quantity = quantity.toInt(), vendorId = vendorId,
             categoryId = categoryId, status = if (active) 1 else 0, trackInventory = if (tracking) 1 else 0)
     }

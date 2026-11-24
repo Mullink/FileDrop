@@ -113,6 +113,10 @@ class HomeViewModel(
             val canSeeOcrScan = runCatching { apiService.canSeeInvoiceOcrScan() }
                 .getOrNull()?.takeIf { it.isSuccessful }?.body() == true
             _uiState.value = _uiState.value.copy(showScanInvoice = canSeeOcrScan)
+        }
+        // Wholesale tiles follow the store's Wholesale Manager switch (last answer is kept on the device).
+        viewModelScope.launch {
+            (appContext.applicationContext as? com.liquorbee.mobile.LiquorBeeApplication)?.wholesaleAccess?.refresh()
 
         }
     }

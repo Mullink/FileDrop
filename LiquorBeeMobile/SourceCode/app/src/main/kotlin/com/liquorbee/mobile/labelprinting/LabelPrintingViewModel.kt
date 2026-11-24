@@ -279,7 +279,7 @@ class LabelPrintingViewModel(private val apiService: ApiService) : ViewModel() {
                     val serverMessage = runCatching { response.errorBody()?.string() }.getOrNull()?.trim()
                     _uiState.value = _uiState.value.copy(
                         printing = false,
-                        message = "Failed to process labels (HTTP ${response.code()})" +
+                        message = "Couldn't print the labels" +
                             if (!serverMessage.isNullOrBlank()) ": $serverMessage" else ". Please try again."
                     )
                 }

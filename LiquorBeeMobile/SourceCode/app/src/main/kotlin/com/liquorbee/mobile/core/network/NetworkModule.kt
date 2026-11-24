@@ -15,7 +15,8 @@ object NetworkModule {
     // Angular build config that's actually shipped), and the same URL
     // LiquorBeeInvoiceScannerAndroid's ApiClient.BASE_URL uses. hennyadmin.azurewebsites.net is
     // environment.ts's (non-prod build config) URL - an old/local-only slot, not the live backend.
-    private const val BASE_URL = "https://dev-liquorbee-ege6cweqduhmayej.canadacentral-01.azurewebsites.net/"
+    // (The "local" build type points this at HennyAdmin running on the developer's PC instead.)
+    private val BASE_URL = com.liquorbee.mobile.BuildConfig.API_BASE_URL
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -39,10 +40,19 @@ object NetworkModule {
             .addInterceptor { chain ->
                 val response = chain.proceed(chain.request())
                 // Missing API routes can fall through to the website and return HTML with HTTP 200.
-                if (chain.request().url.encodedPath.startsWith("/Products/PriceCheckEdit") &&
-                    response.isSuccessful && response.body?.contentType()?.subtype?.contains("html", ignoreCase = true) == true) {
+                val path = chain.request().url.encodedPath
+                val isHtml = response.isSuccessful && response.body?.contentType()?.subtype?.contains("html", ignoreCase = true) == true
+                if (isHtml && path.startsWith("/Products/PriceCheckEdit")) {
                     response.close()
-                    throw IOException("Item editing is not available on this server yet. The Price Check backend update must be deployed.")
+                    throw IOException("Item editing isn't available for your store yet.")
+                }
+                if (isHtml && path.startsWith("/PickLists/")) {
+                    response.close()
+                    throw IOException("Pick lists aren't available for your store yet.")
+                }
+                if (isHtml && path.startsWith("/Restock/")) {
+                    response.close()
+                    throw IOException("The restock list isn't available for your store yet.")
                 }
                 response
             }
@@ -53,7 +63,8 @@ object NetworkModule {
             // Applied client-wide (not per-call) since submitting a multi-page invoice scan or a
             // large label-print batch can be similarly slow.
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(90, TimeUnit.SECONDS)
+            // Online item lookup may try two models (up to ~50s each) before answering.
+            .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(90, TimeUnit.SECONDS)
             .build()
 

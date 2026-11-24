@@ -26,6 +26,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import com.liquorbee.mobile.itemresolve.catalogItemName
+import com.liquorbee.mobile.itemresolve.plainItemName
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -54,11 +56,11 @@ private val DraftSaver = listSaver<PriceCheckDraft, Any>(
 
 @Composable
 internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBack: () -> Unit,
-    onReload: () -> Unit, onSave: (PriceCheckEditDto) -> Unit) {
+    onReload: () -> Unit, onSave: (PriceCheckEditDto) -> Unit, title: String = "Price Check") {
     val item = state.editorItem
     if (item == null) {
         BackHandler(onBack = onBack)
-        Scaffold(containerColor = LbPage, topBar = { EditorTopBar(onBack, onNext, false) }) { padding ->
+        Scaffold(containerColor = LbPage, topBar = { EditorTopBar(title, onBack, onNext, false) }) { padding ->
             Box(Modifier.fillMaxSize().padding(padding).padding(16.dp), contentAlignment = Alignment.Center) {
                 if (state.editorLoading) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,7 +79,10 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
         }
         return
     }
-    var draft by rememberSaveable(item.itemId, item.revision, stateSaver = DraftSaver) { mutableStateOf(PriceCheckDraft.from(item)) }
+    var draft by rememberSaveable(item.itemId, item.revision, stateSaver = DraftSaver) {
+        val loaded = PriceCheckDraft.from(item)
+        mutableStateOf(state.pendingPrice?.let { loaded.withPricing(price = String.format(Locale.US, "%.2f", it)) } ?: loaded)
+    }
     val dirty = draft.isDirty(item)
     var showSavedBanner by remember { mutableStateOf(false) }
     LaunchedEffect(state.saveMessage, item.revision) {
@@ -101,7 +106,7 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
     Scaffold(
         containerColor = LbPage,
         modifier = Modifier.imePadding(),
-        topBar = { EditorTopBar({ leave(onBack) }, { leave(onNext) }, state.saving) },
+        topBar = { EditorTopBar(title, { leave(onBack) }, { leave(onNext) }, state.saving) },
         bottomBar = {
             Surface(color = LbPage, shadowElevation = 0.dp) {
                 Column(Modifier.navigationBarsPadding()) {
@@ -168,6 +173,14 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
                     state.categories.map { it.categoryId to it.name.orEmpty() }, item.categoryName,
                     state.saving) { draft = draft.copy(categoryId = it) }
             }
+            SectionCard("Vendor") {
+                // Shows the vendor set in the POS; it can be changed unless the item has several stock records.
+                PopupPicker("Vendor", draft.vendorId,
+                    state.vendors.map { it.vendorId to it.vendorName },
+                    if (draft.vendorId == item.vendorId) item.vendorName else "",
+                    state.saving || item.hasMultipleStockRecords) { draft = draft.copy(vendorId = it) }
+                if (draft.vendorId.isBlank()) Text("No vendor is set for this item.", color = LbMuted, fontSize = 12.sp)
+            }
             SectionCard("Pricing") {
                 FieldPair(
                     first = { modifier -> EditField("Cash price ($)", draft.price, state.saving, KeyboardType.Decimal, modifier) { draft = draft.withPricing(price = it) } },
@@ -181,7 +194,25 @@ internal fun PriceCheckEditor(state: PriceCheckUiState, onNext: () -> Unit, onBa
                     color = if (draft.percentageError.isBlank()) LbMuted else LbBad, fontSize = 12.sp, lineHeight = 17.sp)
             }
             SectionCard("Item details") {
-                EditField("Item name", draft.name, state.saving) { draft = draft.copy(name = it) }
+                EditField("Item name", draft.name, state.saving, multiline = true) { draft = draft.copy(name = it) }
+                // Store naming convention "NAME (SIZE) - SKU", built from the name, size and SKU as they stand now.
+                val suggestedName = remember(draft.name, draft.sku, state.editorSize) {
+                    catalogItemName(plainItemName(draft.name, draft.sku), state.editorSize, draft.sku)
+                }
+                if (draft.name.isNotBlank() && suggestedName != draft.name.trim()) {
+                    Surface(color = LbActive.copy(alpha = 0.06f), shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, LbActive.copy(alpha = 0.25f))) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Suggested name", color = LbMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                Text(suggestedName, color = LbText, fontSize = 13.sp, lineHeight = 17.sp)
+                            }
+                            TextButton(onClick = { draft = draft.copy(name = suggestedName) }, enabled = !state.saving) {
+                                Text("Apply", color = LbActive, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
                 FieldPair(
                     first = { modifier -> EditField("UPC", draft.upc, state.saving, KeyboardType.Ascii, modifier) { draft = draft.copy(upc = it) } },
                     second = { modifier -> EditField("SKU", draft.sku, state.saving, KeyboardType.Ascii, modifier) { draft = draft.copy(sku = it) } }
@@ -266,8 +297,8 @@ private fun QuantityAdjustmentDialog(current: String, onDismiss: () -> Unit, onA
 }
 
 @Composable
-private fun EditorTopBar(onBack: () -> Unit, onNext: () -> Unit, saving: Boolean) {
-    TopAppBar(title = { Text("Price Check", fontSize = 19.sp, fontWeight = FontWeight.SemiBold) },
+private fun EditorTopBar(title: String, onBack: () -> Unit, onNext: () -> Unit, saving: Boolean) {
+    TopAppBar(title = { Text(title, fontSize = 19.sp, fontWeight = FontWeight.Medium) },
         navigationIcon = { IconButton(onClick = onBack, enabled = !saving) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
         actions = { TextButton(onClick = onNext, enabled = !saving,
             colors = ButtonDefaults.textButtonColors(contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = 0.5f))) {

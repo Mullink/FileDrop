@@ -17,9 +17,24 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"https://dev-liquorbee-ege6cweqduhmayej.canadacentral-01.azurewebsites.net/\"")
+        }
         release {
+            buildConfigField("String", "API_BASE_URL", "\"https://dev-liquorbee-ege6cweqduhmayej.canadacentral-01.azurewebsites.net/\"")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        // Testing against HennyAdmin running on this PC: installs beside the real app as "LB Local"
+        // and is never the APK that gets shipped. Build with scripts/run-local.ps1 (or gradlew installLocal).
+        // The phone reaches the PC through "adb reverse", so localhost works over USB or wireless adb.
+        create("local") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".local"
+            versionNameSuffix = "-local"
+            val localUrl = (project.findProperty("lbApiUrl") as String?) ?: "http://localhost:5227/"
+            buildConfigField("String", "API_BASE_URL", "\"$localUrl\"")
+            matchingFallbacks += listOf("debug")
         }
     }
 
@@ -37,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

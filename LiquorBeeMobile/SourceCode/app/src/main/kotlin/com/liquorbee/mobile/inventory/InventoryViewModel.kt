@@ -256,7 +256,7 @@ class InventoryViewModel(
                     val serverMessage = runCatching { response.errorBody()?.string() }.getOrNull()?.trim()
                     _uiState.value = _uiState.value.copy(
                         sessionCreating = false,
-                        message = "Failed to create session (HTTP ${response.code()})" +
+                        message = "Couldn't start the count" +
                             if (!serverMessage.isNullOrBlank()) ": $serverMessage" else ". Please try again."
                     )
                 }
@@ -358,7 +358,7 @@ class InventoryViewModel(
                     val serverMessage = runCatching { response.errorBody()?.string() }.getOrNull()?.trim()
                     _uiState.value = _uiState.value.copy(
                         sessionCreating = false,
-                        message = "Failed to create session (HTTP ${response.code()})" +
+                        message = "Couldn't start the count" +
                             if (!serverMessage.isNullOrBlank()) ": $serverMessage" else ". Please try again."
                     )
                 }

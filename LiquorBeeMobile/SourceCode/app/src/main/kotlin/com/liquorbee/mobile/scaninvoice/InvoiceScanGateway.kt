@@ -35,11 +35,11 @@ class InvoiceScanGateway(private val api: ApiService) {
             InvoiceScanMode.OCR_TEMPLATE -> api.submitInvoiceToOcr(id, batch, images)
         }
         val receipt = response.requiredBody()
-        check(receipt.batchId == batchId) { "The server did not confirm this upload. Please retry." }
+        check(receipt.batchId == batchId) { "The upload didn't go through. Please try again." }
     }
 
     private fun <T> Response<T>.requiredBody(): T {
         if (!isSuccessful) throw HttpException(this)
-        return body() ?: error("The server returned an empty response. Please retry.")
+        return body() ?: error("Something went wrong. Please try again.")
     }
 }
